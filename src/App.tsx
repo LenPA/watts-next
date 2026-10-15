@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import Login from './components/Login';
+import Home from './components/Home';
 import Dashboard from './components/Dashboard';
 import { exchangeToken, refreshStravaToken } from './api/strava';
 
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('strava_access_token'));
-  const [loading, setLoading] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
+  const [authenticating, setAuthenticating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -15,7 +16,6 @@ function App() {
     
     if (token && expiresAt && refreshToken) {
        if (Date.now() / 1000 > Number(expiresAt)) {
-          setLoading(true);
           refreshStravaToken(refreshToken)
             .then(data => {
                localStorage.setItem('strava_access_token', data.access_token);
@@ -27,8 +27,7 @@ function App() {
                // Token completely revoked or failed, force logout
                localStorage.removeItem('strava_access_token');
                setToken(null);
-            })
-            .finally(() => setLoading(false));
+            });
        }
     }
 
@@ -37,7 +36,7 @@ function App() {
     const code = urlParams.get('code');
 
     if (code && !token) {
-      setLoading(true);
+      setAuthenticating(true);
       exchangeToken(code)
         .then((data) => {
           localStorage.setItem('strava_access_token', data.access_token);
@@ -53,15 +52,15 @@ function App() {
           setError('Failed to authenticate with Strava.');
         })
         .finally(() => {
-          setLoading(false);
+          setAuthenticating(false);
         });
     }
   }, [token]);
 
-  if (loading) {
+  if (authenticating) {
     return (
       <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-        <div className="animate-fade-in text-gradient">Authenticating...</div>
+        <div className="animate-fade-in text-gradient">Authenticating with Strava...</div>
       </div>
     );
   }
@@ -78,18 +77,20 @@ function App() {
     );
   }
 
-  if (!token) {
-    return <Login />;
+  if (!token && !isDemo) {
+    return <Home onOpenDemo={() => setIsDemo(true)} />;
   }
 
   return (
     <Dashboard 
       token={token} 
+      isDemo={isDemo}
       onLogout={() => {
         localStorage.removeItem('strava_access_token');
         localStorage.removeItem('strava_refresh_token');
         localStorage.removeItem('strava_expires_at');
         setToken(null);
+        setIsDemo(false);
       }} 
     />
   );

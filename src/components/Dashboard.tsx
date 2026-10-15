@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
-import { getActivities, getAthlete } from '../api/strava';
+import { STRAVA_AUTH_URL, getActivities, getAthlete } from '../api/strava';
 import { saveActivities, getAllActivities, getLastSyncTime, setLastSyncTime } from '../lib/storage';
 import { analyzeActivities, type AnalyzedData } from '../lib/analysis';
-import { Activity, Zap, HeartPulse, RefreshCw, Calendar } from 'lucide-react';
+import { DEMO_ATHLETE, generateDemoActivities } from '../lib/demoData';
+import { Activity, Zap, HeartPulse, RefreshCw, Calendar, ArrowLeft } from 'lucide-react';
 import { BarChart, Bar, Legend, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
-export default function Dashboard({ token, onLogout }: { token: string; onLogout: () => void }) {
+export default function Dashboard({ 
+  token, 
+  isDemo = false, 
+  onLogout 
+}: { 
+  token?: string | null; 
+  isDemo?: boolean; 
+  onLogout: () => void; 
+}) {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [athlete, setAthlete] = useState<any>(null);
@@ -13,6 +22,18 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
   const [ftp, setFtp] = useState<number>(Number(localStorage.getItem('strava_user_ftp')) || 250);
 
   const syncData = async (force: boolean = false, currentFtp: number = ftp) => {
+    if (isDemo) {
+      setSyncing(true);
+      setAthlete(DEMO_ATHLETE);
+      const demoActs = generateDemoActivities();
+      setAnalysis(analyzeActivities(demoActs, currentFtp));
+      setSyncing(false);
+      setLoading(false);
+      return;
+    }
+
+    if (!token) return;
+
     try {
       setSyncing(true);
       const ath = await getAthlete(token);
@@ -33,7 +54,7 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
       // Note: Strava 'after' param takes seconds (epoch), JS Date gives ms.
       const newActivities = await getActivities(token, Math.floor(lastSync / 1000));
       
-      if (newActivities.length > 0) {
+      if (Array.isArray(newActivities) && newActivities.length > 0) {
         await saveActivities(newActivities);
         await setLastSyncTime(Date.now());
       }
@@ -53,7 +74,7 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
 
   useEffect(() => {
     syncData();
-  }, [token]);
+  }, [token, isDemo]);
 
   const handleFtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value);
@@ -61,7 +82,11 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
     localStorage.setItem('strava_user_ftp', String(val));
     // Provide a snappy UI by re-running local analysis instantly
     if (!loading && !syncing) {
-      getAllActivities().then(all => setAnalysis(analyzeActivities(all, val)));
+      if (isDemo) {
+        setAnalysis(analyzeActivities(generateDemoActivities(), val));
+      } else {
+        getAllActivities().then(all => setAnalysis(analyzeActivities(all, val)));
+      }
     }
   };
 
@@ -115,6 +140,55 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
 
   return (
     <div className="container animate-fade-in" style={{ paddingBottom: '4rem' }}>
+      {isDemo && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(252, 76, 2, 0.15), rgba(249, 115, 22, 0.15))',
+          border: '1px solid rgba(252, 76, 2, 0.3)',
+          borderRadius: '12px',
+          padding: '0.85rem 1.25rem',
+          marginBottom: '2rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <span style={{ 
+              background: 'var(--accent-primary)', 
+              color: 'white', 
+              fontSize: '0.75rem', 
+              fontWeight: 700, 
+              padding: '0.2rem 0.5rem', 
+              borderRadius: '4px', 
+              textTransform: 'uppercase' 
+            }}>
+              Demo Modus
+            </span>
+            <span style={{ color: 'var(--text-main)', fontSize: '0.95rem' }}>
+              Je bekijkt nu een interactieve preview met voorbeeld-ritten.
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+            <button 
+              onClick={onLogout} 
+              className="btn-glass" 
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.85rem', cursor: 'pointer' }}
+            >
+              <ArrowLeft size={14} /> Terug naar Home
+            </button>
+            <a 
+              href={STRAVA_AUTH_URL} 
+              className="btn" 
+              style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+            >
+              Koppel jouw eigen Strava
+            </a>
+          </div>
+        </div>
+      )}
+
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-primary)', fontSize: '0.85rem', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.25rem' }}>
@@ -141,7 +215,7 @@ export default function Dashboard({ token, onLogout }: { token: string; onLogout
             <RefreshCw size={16} className={syncing ? 'spinner' : ''} /> {syncing ? 'Syncing...' : 'Sync'}
           </button>
           <button className="btn" onClick={onLogout} style={{ background: 'transparent', color: 'var(--text-muted)' }}>
-            Logout
+            {isDemo ? 'Sluit Demo' : 'Logout'}
           </button>
         </div>
       </header>
