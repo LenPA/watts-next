@@ -1,0 +1,105 @@
+:root {
+  --bg-dark: #0f1115;
+  --bg-card: #181b21;
+  --bg-glass: rgba(24, 27, 33, 0.6);
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --accent-primary: #fc4c02; /* Strava Orange */
+  --accent-secondary: #f97316;
+  --success: #10b981;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --font-family: 'Outfit', system-ui, sans-serif;
+  --border-radius: 16px;
+  --border-soft: rgba(255, 255, 255, 0.05);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+  background-image: 
+    radial-gradient(circle at 15% 50%, rgba(252, 76, 2, 0.03), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(249, 115, 22, 0.03), transparent 25%);
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  font-family: var(--font-family);
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(252, 76, 2, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem;
+  width: 100%;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #fff, #a1a1aa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
