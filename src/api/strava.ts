@@ -7,7 +7,7 @@ import {
   type ActivityStreamRecord
 } from '../lib/db';
 
-const CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || '';
+const CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || '213326';
 const CLIENT_SECRET = import.meta.env.VITE_STRAVA_CLIENT_SECRET || '';
 
 /**
