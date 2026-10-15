@@ -1,3 +1,5 @@
+import { normalizeStravaActivity, type NormalizedActivity } from './db';
+
 /**
  * Realistic demo activities across the past 4 weeks
  * for the interactive demo mode of Watts Next.
@@ -12,11 +14,11 @@ export const DEMO_ATHLETE = {
   country: 'Nederland'
 };
 
-export function generateDemoActivities() {
+export function generateDemoActivities(): NormalizedActivity[] {
   const now = new Date();
   const dayMs = 24 * 60 * 60 * 1000;
 
-  return [
+  const raw = [
     {
       id: 101,
       name: 'Ochtendrit Heuvelrug (D2/D3)',
@@ -178,4 +180,6 @@ export function generateDemoActivities() {
       suffer_score: 22
     }
   ];
+
+  return raw.map(normalizeStravaActivity);
 }

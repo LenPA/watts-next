@@ -6,7 +6,10 @@ import { exchangeToken, refreshStravaToken } from './api/strava';
 function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('strava_access_token'));
   const [isDemo, setIsDemo] = useState(false);
-  const [authenticating, setAuthenticating] = useState(false);
+  const [authenticating, setAuthenticating] = useState<boolean>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return Boolean(params.get('code') && !localStorage.getItem('strava_access_token'));
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,22 +37,23 @@ function App() {
     // 2. Initial OAuth callback
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
+    const state = urlParams.get('state');
 
     if (code && !token) {
-      setAuthenticating(true);
-      exchangeToken(code)
+      exchangeToken(code, state)
         .then((data) => {
           localStorage.setItem('strava_access_token', data.access_token);
           if (data.refresh_token) localStorage.setItem('strava_refresh_token', data.refresh_token);
           if (data.expires_at) localStorage.setItem('strava_expires_at', data.expires_at.toString());
-          
+          if (data.athlete) localStorage.setItem('strava_athlete', JSON.stringify(data.athlete));
+
           // Clean up the URL
           window.history.replaceState({}, document.title, window.location.pathname);
           setToken(data.access_token);
         })
         .catch((err) => {
           console.error(err);
-          setError('Failed to authenticate with Strava.');
+          setError(err?.message || 'Authenticatie met Strava is mislukt. Probeer het opnieuw.');
         })
         .finally(() => {
           setAuthenticating(false);

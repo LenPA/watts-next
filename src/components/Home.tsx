@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { STRAVA_AUTH_URL } from '../api/strava';
+import { getStravaAuthUrl } from '../api/strava';
 import { 
   Zap, 
   Activity, 
@@ -103,19 +103,20 @@ export default function Home({ onOpenDemo }: HomeProps) {
             >
               <Eye size={16} /> Demo Bekijken
             </button>
-            <a 
-              href={STRAVA_AUTH_URL} 
+            <button 
+              onClick={() => { window.location.href = getStravaAuthUrl(); }}
               className="btn"
               style={{
                 fontSize: '0.9rem',
                 padding: '0.5rem 1.25rem',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.5rem'
+                gap: '0.5rem',
+                cursor: 'pointer'
               }}
             >
               <Activity size={16} /> Koppel Strava
-            </a>
+            </button>
           </div>
         </div>
       </nav>
@@ -175,18 +176,19 @@ export default function Home({ onOpenDemo }: HomeProps) {
           flexWrap: 'wrap',
           marginBottom: '3rem'
         }}>
-          <a 
-            href={STRAVA_AUTH_URL} 
+          <button 
+            onClick={() => { window.location.href = getStravaAuthUrl(); }}
             className="btn"
             style={{
               padding: '0.9rem 2rem',
               fontSize: '1.05rem',
               fontWeight: 600,
-              boxShadow: '0 8px 25px rgba(252, 76, 2, 0.35)'
+              boxShadow: '0 8px 25px rgba(252, 76, 2, 0.35)',
+              cursor: 'pointer'
             }}
           >
             <Activity size={20} /> Koppel direct met Strava <ArrowRight size={18} />
-          </a>
+          </button>
 
           <button 
             onClick={onOpenDemo}
@@ -569,9 +571,13 @@ export default function Home({ onOpenDemo }: HomeProps) {
             Koppel je Strava of start met de demo en ontdek direct jouw optimale volgende workout.
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <a href={STRAVA_AUTH_URL} className="btn" style={{ padding: '0.85rem 2rem' }}>
+            <button 
+              onClick={() => { window.location.href = getStravaAuthUrl(); }} 
+              className="btn" 
+              style={{ padding: '0.85rem 2rem', cursor: 'pointer' }}
+            >
               <Activity size={18} /> Koppel met Strava
-            </a>
+            </button>
             <button onClick={onOpenDemo} className="btn-glass" style={{ padding: '0.85rem 1.75rem', cursor: 'pointer' }}>
               <Eye size={18} /> Bekijk Demo
             </button>

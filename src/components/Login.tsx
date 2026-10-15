@@ -1,4 +1,4 @@
-import { STRAVA_AUTH_URL } from '../api/strava';
+import { getStravaAuthUrl } from '../api/strava';
 import { Activity } from 'lucide-react';
 
 export default function Login() {
@@ -12,9 +12,13 @@ export default function Login() {
         <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>
           Analyze your recent training block and discover what's next.
         </p>
-        <a href={STRAVA_AUTH_URL} className="btn" style={{ width: '100%' }}>
+        <button 
+          onClick={() => { window.location.href = getStravaAuthUrl(); }} 
+          className="btn" 
+          style={{ width: '100%', cursor: 'pointer' }}
+        >
           Connect with Strava
-        </a>
+        </button>
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+import type { NormalizedActivity } from './db';
+
 export interface TrainingTarget {
   type: 'Endurance' | 'Threshold' | 'Power';
   reasoning: string;
@@ -17,26 +19,32 @@ export interface WeeklyPlanDay {
   description: string;
 }
 
+export interface AnalyzedActivity extends NormalizedActivity {
+  average_speed?: number;
+  analyzedType: 'Endurance' | 'Threshold' | 'Power';
+  analyzedLoad: number;
+}
+
 export interface AnalyzedData {
   enduranceLoad: number;
   thresholdLoad: number;
   powerLoad: number;
   totalLoad: number;
-  recentTrends: any[];
+  recentTrends: AnalyzedActivity[];
   suggestions: TrainingTarget[];
   weeklyPlan: WeeklyPlanDay[];
 }
 
 /**
- * Super basic heuristic:
+ * Heuristic classifier:
  * - If activity has heart rate or suffer score, use that.
- * - Otherwise use average speed/power (if available) or simply moving time & elevation to guess intensity.
+ * - Otherwise use power or time to estimate intensity.
  */
-function classifyActivity(activity: any, userFtp: number) {
+function classifyActivity(activity: NormalizedActivity, userFtp: number): { type: 'Endurance' | 'Threshold' | 'Power'; load: number } {
   let type: 'Endurance' | 'Threshold' | 'Power' = 'Endurance';
   let load = 0;
   
-  const movingHours = activity.moving_time / 3600;
+  const movingHours = (activity.moving_time || 0) / 3600;
 
   // Use suffer score or perceived exertion if present; fallback to moving time in hours * 40
   if (activity.suffer_score) {
@@ -47,28 +55,24 @@ function classifyActivity(activity: any, userFtp: number) {
 
   const loadPerHour = movingHours > 0 ? load / movingHours : 0;
 
-  // Prioritize HR, then Power, then Speed
+  // Prioritize HR, then Power
   if (activity.has_heartrate && activity.average_heartrate) {
-    if (activity.average_heartrate > 160 || activity.max_heartrate > 185) type = 'Power';
+    if (activity.average_heartrate > 160 || (activity.max_heartrate && activity.max_heartrate > 185)) type = 'Power';
     else if (activity.average_heartrate > 140) type = 'Threshold';
     else type = 'Endurance';
   } else if (activity.device_watts && activity.average_watts) {
     if (activity.average_watts > userFtp * 1.05) type = 'Power';
     else if (activity.average_watts > userFtp * 0.85) type = 'Threshold';
     else type = 'Endurance';
-  } else if (activity.average_speed) {
-    if (activity.average_speed > 8.5) type = 'Power';
-    else if (activity.average_speed > 7.5) type = 'Threshold';
-    else type = 'Endurance';
+  } else {
+    type = 'Endurance';
   }
 
   // Sanity overrides:
-  // 1. If the suffer score is low relative to time, it wasn't threshold.
   if (activity.suffer_score && loadPerHour < 40) {
     type = 'Endurance';
   }
   
-  // 2. If the absolute load is tiny (e.g. < 25), it's just a commute or recovery spin.
   if (load < 25) {
     type = 'Endurance';
   }
@@ -76,7 +80,7 @@ function classifyActivity(activity: any, userFtp: number) {
   return { type, load };
 }
 
-export function analyzeActivities(activities: any[], userFtp: number): AnalyzedData {
+export function analyzeActivities(activities: NormalizedActivity[], userFtp: number): AnalyzedData {
   let enduranceLoad = 0;
   let thresholdLoad = 0;
   let powerLoad = 0;
@@ -85,7 +89,7 @@ export function analyzeActivities(activities: any[], userFtp: number): AnalyzedD
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const recent = activities.filter((a) => new Date(a.start_date) > thirtyDaysAgo);
+  const recent = activities.filter((a) => new Date(a.start_date || '') > thirtyDaysAgo);
 
   const recentAnalyzed = recent.map((activity) => {
     const { type, load } = classifyActivity(activity, userFtp);
@@ -106,7 +110,7 @@ export function analyzeActivities(activities: any[], userFtp: number): AnalyzedD
   const thrPct = thresholdLoad / totalLoad;
   const powPct = powerLoad / totalLoad;
 
-  let suggestions: TrainingTarget[] = [];
+  const suggestions: TrainingTarget[] = [];
   let weeklyPlan: WeeklyPlanDay[] = [];
 
   // Simple polarized training model target: 80% Endurance, 20% Intensity (Threshold + Power)
