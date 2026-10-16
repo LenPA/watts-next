@@ -8,6 +8,20 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('watts-next-theme');
+          if (saved === 'ice-blue-pink' || saved === 'dark-performance') {
+            document.documentElement.setAttribute('data-theme', saved);
+          } else {
+            document.documentElement.setAttribute('data-theme', 'dark-performance');
+          }
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark-performance');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

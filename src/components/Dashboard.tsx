@@ -3,6 +3,7 @@ import { getStravaAuthUrl, syncActivities, fetchActivityStreams, getAthlete } fr
 import { getAllActivities, getLastSyncTime, clearAllLocalData } from '../lib/db';
 import { analyzeActivities, type AnalyzedData, type AnalyzedActivity } from '../lib/analysis';
 import { DEMO_ATHLETE, generateDemoActivities } from '../lib/demoData';
+import ThemeSwitcher from './ThemeSwitcher';
 import { 
   Activity, 
   Zap, 
@@ -344,10 +345,10 @@ export default function Dashboard({
 
   // Colors & badges
   const typeColors = {
-    Endurance: { bg: 'rgba(16, 185, 129, 0.12)', border: '#10b981', text: '#10b981', badge: 'bg-emerald' },
-    Threshold: { bg: 'rgba(245, 158, 11, 0.12)', border: '#f59e0b', text: '#f59e0b', badge: 'bg-amber' },
-    Power: { bg: 'rgba(239, 68, 68, 0.12)', border: '#ef4444', text: '#ef4444', badge: 'bg-rose' },
-    Rest: { bg: 'rgba(148, 163, 184, 0.08)', border: '#64748b', text: '#94a3b8', badge: 'bg-slate' }
+    Endurance: { bg: 'rgba(16, 185, 129, 0.12)', border: 'var(--color-zone-endurance)', text: 'var(--color-zone-endurance)', badge: 'bg-emerald' },
+    Threshold: { bg: 'rgba(245, 158, 11, 0.12)', border: 'var(--color-zone-threshold)', text: 'var(--color-zone-threshold)', badge: 'bg-amber' },
+    Power: { bg: 'rgba(239, 68, 68, 0.12)', border: 'var(--color-zone-vo2max)', text: 'var(--color-zone-vo2max)', badge: 'bg-rose' },
+    Rest: { bg: 'rgba(100, 116, 139, 0.12)', border: 'var(--color-zone-recovery)', text: 'var(--color-zone-recovery)', badge: 'bg-slate' }
   };
 
   const getSportBadgeLabel = (sportType?: string) => {
@@ -452,11 +453,11 @@ export default function Dashboard({
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h1 style={{ fontSize: '1.6rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'white' }}>
+              <h1 style={{ fontSize: '1.6rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--color-text-primary)' }}>
                 Watts <span className="text-gradient-orange">Next</span>
               </h1>
               <span style={{ 
-                background: 'rgba(255, 255, 255, 0.08)', 
+                background: 'var(--color-surface-secondary)', 
                 color: 'var(--text-muted)', 
                 fontSize: '0.75rem', 
                 padding: '0.15rem 0.5rem', 
@@ -473,11 +474,14 @@ export default function Dashboard({
 
         {/* Action Controls */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
+          {/* Theme Switcher */}
+          <ThemeSwitcher />
+
           {/* FTP Control */}
           <div style={{ 
             display: 'flex', 
             alignItems: 'center', 
-            background: 'rgba(24, 27, 33, 0.8)', 
+            background: 'var(--color-surface-secondary)', 
             border: '1px solid var(--border-soft)', 
             borderRadius: '10px', 
             padding: '0.35rem 0.65rem',
@@ -589,7 +593,7 @@ export default function Dashboard({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Sparkles size={18} color="var(--accent-primary)" />
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'white' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
               Wat moet ik vandaag trainen, en waarom?
             </h2>
           </div>
@@ -600,7 +604,7 @@ export default function Dashboard({
 
         <div className="glass-panel" style={{
           borderLeft: `5px solid ${typeColors[todayItem.plannedType].border}`,
-          background: `linear-gradient(135deg, ${typeColors[todayItem.plannedType].bg} 0%, rgba(24, 27, 33, 0.9) 100%)`,
+          background: `linear-gradient(135deg, ${typeColors[todayItem.plannedType].bg} 0%, var(--color-surface) 100%)`,
           padding: '1.75rem 2rem',
           position: 'relative'
         }}>
@@ -629,7 +633,7 @@ export default function Dashboard({
                 </span>
               </div>
 
-              <h3 style={{ fontSize: '1.85rem', fontWeight: 700, color: 'white', marginBottom: '0.75rem' }}>
+              <h3 style={{ fontSize: '1.85rem', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '0.75rem' }}>
                 {todayItem.plannedTitle}
               </h3>
 
@@ -639,7 +643,7 @@ export default function Dashboard({
 
               {/* Structured Steps Preview */}
               <div style={{
-                background: 'rgba(15, 17, 21, 0.6)',
+                background: 'var(--color-surface-secondary)',
                 border: '1px solid var(--border-soft)',
                 borderRadius: '8px',
                 padding: '0.85rem 1.25rem',
@@ -661,7 +665,7 @@ export default function Dashboard({
 
             {/* Quick Action Box */}
             <div style={{
-              background: 'rgba(15, 17, 21, 0.7)',
+              background: 'var(--color-surface-secondary)',
               border: '1px solid var(--border-soft)',
               borderRadius: '12px',
               padding: '1.25rem',
@@ -699,7 +703,7 @@ export default function Dashboard({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Calendar size={20} color="var(--accent-primary)" />
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: 'white' }}>
+            <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
               De Weekplanning
             </h2>
             <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginLeft: '0.5rem' }}>
@@ -709,16 +713,16 @@ export default function Dashboard({
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} /> Duur (Z2)
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-endurance)' }} /> Duur (Z2)
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} /> Drempel (Z4)
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-threshold)' }} /> Drempel (Z4)
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }} /> VO2 Max (Z5)
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-vo2max)' }} /> VO2 Max (Z5)
             </span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#64748b' }} /> Rust
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-recovery)' }} /> Rust
             </span>
           </div>
         </div>
@@ -787,7 +791,7 @@ export default function Dashboard({
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--success)', fontSize: '0.75rem', fontWeight: 600 }}>
                         <Check size={12} /> Gereden
                       </div>
-                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {completedFirst.name}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
@@ -814,7 +818,7 @@ export default function Dashboard({
                       <div style={{ fontSize: '0.7rem', color: typeStyle.text, fontWeight: 700, textTransform: 'uppercase' }}>
                         {item.plannedType}
                       </div>
-                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'white', lineHeight: '1.3' }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--color-text-primary)', lineHeight: '1.3' }}>
                         {item.plannedTitle}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.1rem' }}>
@@ -856,11 +860,11 @@ export default function Dashboard({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Activity size={20} color="var(--accent-primary)" />
-              <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: 'white' }}>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
                 Wat je eerder hebt gedaan
               </h2>
               <span style={{
-                background: 'rgba(255, 255, 255, 0.08)',
+                background: 'var(--color-surface-secondary)',
                 color: 'var(--text-main)',
                 fontSize: '0.8rem',
                 fontWeight: 600,
@@ -878,7 +882,7 @@ export default function Dashboard({
           {/* Search & Filter Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             {/* Filter pills */}
-            <div style={{ display: 'flex', background: 'rgba(24, 27, 33, 0.8)', padding: '0.2rem', borderRadius: '8px', border: '1px solid var(--border-soft)' }}>
+            <div style={{ display: 'flex', background: 'var(--color-surface-secondary)', padding: '0.2rem', borderRadius: '8px', border: '1px solid var(--border-soft)' }}>
               {[
                 { id: 'all', label: 'Alles' },
                 { id: 'outdoor', label: 'Buiten' },
@@ -890,7 +894,7 @@ export default function Dashboard({
                   onClick={() => setSelectedSportFilter(f.id)}
                   style={{
                     background: selectedSportFilter === f.id ? 'var(--accent-primary)' : 'transparent',
-                    color: selectedSportFilter === f.id ? 'white' : 'var(--text-muted)',
+                    color: selectedSportFilter === f.id ? '#ffffff' : 'var(--text-muted)',
                     border: 'none',
                     padding: '0.35rem 0.75rem',
                     borderRadius: '6px',
@@ -910,7 +914,7 @@ export default function Dashboard({
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
-              background: 'rgba(24, 27, 33, 0.8)',
+              background: 'var(--color-surface-secondary)',
               border: '1px solid var(--border-soft)',
               borderRadius: '8px',
               padding: '0.35rem 0.75rem'
@@ -924,7 +928,7 @@ export default function Dashboard({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: 'white',
+                  color: 'var(--color-text-primary)',
                   fontSize: '0.85rem',
                   outline: 'none',
                   width: '120px'
@@ -973,7 +977,7 @@ export default function Dashboard({
                         fontSize: '0.7rem',
                         padding: '0.1rem 0.45rem',
                         borderRadius: '4px',
-                        background: 'rgba(255, 255, 255, 0.06)',
+                        background: 'var(--color-surface-secondary)',
                         color: 'var(--text-muted)'
                       }}>
                         {getSportBadgeLabel(act.sport_type || act.type)}
@@ -982,7 +986,7 @@ export default function Dashboard({
 
                     <div style={{
                       fontWeight: 600,
-                      color: 'white',
+                      color: 'var(--color-text-primary)',
                       fontSize: '0.95rem',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
@@ -1004,7 +1008,7 @@ export default function Dashboard({
                   {/* Distance */}
                   <div style={{ minWidth: '70px' }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Afstand</div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'white' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text-primary)' }}>
                       {((act.distance || 0) / 1000).toFixed(1)} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>km</span>
                     </div>
                   </div>
@@ -1012,7 +1016,7 @@ export default function Dashboard({
                   {/* Time */}
                   <div style={{ minWidth: '70px' }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Duur</div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'white' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text-primary)' }}>
                       {formatDuration(act.moving_time || 0)}
                     </div>
                   </div>
@@ -1044,7 +1048,7 @@ export default function Dashboard({
                   {/* Elevation */}
                   <div style={{ minWidth: '65px' }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Hoogte</div>
-                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'white' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-text-primary)' }}>
                       {Math.round(act.total_elevation_gain || 0)} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>m</span>
                     </div>
                   </div>
@@ -1113,7 +1117,7 @@ export default function Dashboard({
               textAlign: 'center', 
               padding: '3rem 1rem', 
               color: 'var(--text-muted)', 
-              background: 'rgba(24, 27, 33, 0.3)',
+              background: 'var(--color-surface-secondary)',
               borderRadius: '12px',
               border: '1px dashed var(--border-soft)'
             }}>
@@ -1128,7 +1132,7 @@ export default function Dashboard({
         <div style={{
           position: 'fixed',
           inset: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backgroundColor: 'var(--color-modal-background)',
           backdropFilter: 'blur(8px)',
           display: 'flex',
           alignItems: 'center',
@@ -1138,7 +1142,7 @@ export default function Dashboard({
         }}>
           <div className="glass-panel" style={{ maxWidth: '440px', width: '100%', textAlign: 'center', padding: '2rem' }}>
             <Trash2 size={40} color="var(--danger)" style={{ marginBottom: '1rem' }} />
-            <h3 style={{ fontSize: '1.35rem', marginBottom: '0.5rem', color: 'white' }}>Lokale data wissen?</h3>
+            <h3 style={{ fontSize: '1.35rem', marginBottom: '0.5rem', color: 'var(--color-text-primary)' }}>Lokale data wissen?</h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.5', marginBottom: '1.5rem' }}>
               Weet je zeker dat je alle lokaal opgeslagen Strava-ritten, streams en tokens wilt verwijderen uit je browser (IndexedDB)? Je wordt daarna uitgelogd.
             </p>

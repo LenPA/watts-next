@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { getStravaAuthUrl } from '../api/strava';
+import ThemeSwitcher from './ThemeSwitcher';
 import { 
   Zap, 
   Activity, 
@@ -57,7 +58,7 @@ export default function Home({ onOpenDemo }: HomeProps) {
         zIndex: 50,
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        backgroundColor: 'rgba(15, 17, 21, 0.8)',
+        backgroundColor: 'var(--color-surface-glass)',
         borderBottom: '1px solid var(--border-soft)',
         padding: '1rem 2rem'
       }}>
@@ -78,17 +79,18 @@ export default function Home({ onOpenDemo }: HomeProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 15px rgba(252, 76, 2, 0.4)'
+              boxShadow: 'var(--shadow-button-primary)'
             }}>
               <Zap size={20} color="white" />
             </div>
-            <span style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
+            <span style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--color-text-primary)' }}>
               Watts <span className="text-gradient">Next</span>
             </span>
           </div>
 
           {/* Nav Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <ThemeSwitcher />
             <button 
               onClick={onOpenDemo}
               className="btn-glass"
@@ -269,7 +271,7 @@ export default function Home({ onOpenDemo }: HomeProps) {
             </p>
             <div style={{
               fontSize: '0.85rem',
-              background: 'rgba(255,255,255,0.03)',
+              background: 'var(--color-surface-secondary)',
               padding: '0.5rem 0.75rem',
               borderRadius: '8px',
               color: 'var(--text-main)'
@@ -303,7 +305,7 @@ export default function Home({ onOpenDemo }: HomeProps) {
             </p>
             <div style={{
               fontSize: '0.85rem',
-              background: 'rgba(255,255,255,0.03)',
+              background: 'var(--color-surface-secondary)',
               padding: '0.5rem 0.75rem',
               borderRadius: '8px',
               color: 'var(--text-main)'
@@ -337,7 +339,7 @@ export default function Home({ onOpenDemo }: HomeProps) {
             </p>
             <div style={{
               fontSize: '0.85rem',
-              background: 'rgba(255,255,255,0.03)',
+              background: 'var(--color-surface-secondary)',
               padding: '0.5rem 0.75rem',
               borderRadius: '8px',
               color: 'var(--text-main)'
@@ -350,7 +352,7 @@ export default function Home({ onOpenDemo }: HomeProps) {
 
       {/* How it Works Section */}
       <section style={{
-        backgroundColor: 'rgba(24, 27, 33, 0.5)',
+        backgroundColor: 'var(--color-surface-glass)',
         borderTop: '1px solid var(--border-soft)',
         borderBottom: '1px solid var(--border-soft)',
         padding: '5rem 1.5rem'
@@ -445,8 +447,8 @@ export default function Home({ onOpenDemo }: HomeProps) {
         width: '100%'
       }}>
         <div className="glass-panel" style={{
-          background: 'linear-gradient(135deg, rgba(24, 27, 33, 0.9), rgba(30, 35, 45, 0.8))',
-          border: '1px solid rgba(252, 76, 2, 0.25)',
+          background: 'var(--color-surface-glass)',
+          border: '1px solid var(--border-soft)',
           padding: '2.5rem',
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -473,7 +475,7 @@ export default function Home({ onOpenDemo }: HomeProps) {
             display: 'flex',
             flexDirection: 'column',
             gap: '1rem',
-            background: 'rgba(15, 17, 21, 0.6)',
+            background: 'var(--color-surface-secondary)',
             padding: '1.5rem',
             borderRadius: '12px',
             border: '1px solid var(--border-soft)'
@@ -560,7 +562,7 @@ export default function Home({ onOpenDemo }: HomeProps) {
 
       {/* Bottom CTA Banner */}
       <section style={{
-        backgroundColor: 'rgba(24, 27, 33, 0.4)',
+        backgroundColor: 'var(--color-surface-glass)',
         borderTop: '1px solid var(--border-soft)',
         padding: '4rem 1.5rem',
         textAlign: 'center'
