@@ -22,6 +22,7 @@ import FitnessFormChart from './FitnessFormChart';
 import OnboardingModal from './OnboardingModal';
 import ActivityDetailModal from './ActivityDetailModal';
 import WorkoutDetailModal from './WorkoutDetailModal';
+import WorkoutBlocksOverview from './WorkoutBlocksOverview';
 import AdaptiveReplanBanner from './AdaptiveReplanBanner';
 import DataManagementModal from './DataManagementModal';
 import AvailabilityModal from './AvailabilityModal';
@@ -817,6 +818,20 @@ export default function Dashboard({
                   <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.85rem 0' }}>
                     Lekker gewerkt! Je hebt vandaag al getraind en deze rit is verwerkt in je fitness- en vermoeidheidstrends.
                   </p>
+
+                  {/* Planned Workout Blocks Overview (shown even after ride) */}
+                  {todayItem.plannedCategory !== 'rest' && todayItem.workout && (
+                    <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                        Geplande trainingsblokken voor vandaag
+                      </div>
+                      <WorkoutBlocksOverview 
+                        workout={todayItem.workout} 
+                        compact={true}
+                        maxHeight="200px"
+                      />
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -835,9 +850,17 @@ export default function Dashboard({
                     )}
                   </div>
 
-                  <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.85rem 0' }}>
+                  <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.5rem 0' }}>
                     {todayItem.plannedReason}
                   </p>
+
+                  {/* Interactive Structured Workout Blocks Overview (Always visible) */}
+                  {todayItem.plannedCategory !== 'rest' && todayItem.workout && (
+                    <WorkoutBlocksOverview 
+                      workout={todayItem.workout} 
+                      maxHeight="240px"
+                    />
+                  )}
                 </>
               )}
             </div>
@@ -860,11 +883,7 @@ export default function Dashboard({
                     style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                   >
                     <Activity size={13} style={{ color: 'var(--color-primary)' }} />
-                    <span>
-                      {todayItem.isCompleted
-                        ? `Bekijk geplande intervallen (${todayItem.workout.computedSteps.length} blokken)`
-                        : `Bekijk ${todayItem.workout.computedSteps.length} trainingsblokken`}
-                    </span>
+                    <span>Details & wissel workout</span>
                   </button>
 
                   <button

@@ -7,11 +7,11 @@ import {
   Activity, 
   CheckCircle2, 
   HelpCircle,
-  BarChart3,
   Download
 } from 'lucide-react';
 import type { PlannedWeekDay } from '../lib/trainingPlanner';
 import { downloadZwoFile } from '../lib/zwiftExport';
+import WorkoutBlocksOverview from './WorkoutBlocksOverview';
 
 interface WorkoutDetailModalProps {
   day: PlannedWeekDay | null;
@@ -30,16 +30,6 @@ export default function WorkoutDetailModal({
 
   const { workout, plannedReason, isCompleted, completedActivities } = day;
   const isRest = day.plannedCategory === 'rest';
-
-  // Zone colors for steps
-  const getStepColor = (targetPercent: number) => {
-    if (targetPercent < 0.56) return 'var(--color-zone-recovery)'; // Z1
-    if (targetPercent < 0.76) return 'var(--color-zone-endurance)'; // Z2
-    if (targetPercent < 0.91) return 'var(--color-zone-tempo)'; // Z3
-    if (targetPercent < 1.06) return 'var(--color-zone-threshold)'; // Z4
-    if (targetPercent < 1.21) return 'var(--color-zone-vo2max)'; // Z5
-    return 'var(--color-zone-anaerobic)'; // Z6
-  };
 
   const modalContent = (
     <div 
@@ -244,99 +234,7 @@ export default function WorkoutDetailModal({
 
           {/* Structured Step Timeline Visualization */}
           {!isRest && workout.computedSteps.length > 0 && (
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <BarChart3 size={15} style={{ color: 'var(--color-primary)' }} />
-                  Visueel Profiel van de Training
-                </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {workout.computedSteps.length} trainingsblokken
-                </span>
-              </div>
-
-              {/* Bar graph representing step intensities */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'flex-end',
-                height: '70px',
-                background: 'var(--color-surface-secondary)',
-                borderRadius: '8px',
-                padding: '6px',
-                gap: '3px',
-                overflow: 'hidden'
-              }}>
-                {workout.computedSteps.map((step, idx) => {
-                  const heightPercent = Math.min(100, Math.max(25, (step.targetFtpPercent / 1.3) * 100));
-                  return (
-                    <div
-                      key={step.id || idx}
-                      title={`${step.name}: ${step.formattedDuration} @ ${step.targetWattsLow}W (${Math.round(step.targetFtpPercent * 100)}% FTP)`}
-                      style={{
-                        flex: step.durationSeconds,
-                        height: `${heightPercent}%`,
-                        backgroundColor: getStepColor(step.targetFtpPercent),
-                        borderRadius: '3px',
-                        transition: 'opacity 0.2s',
-                        cursor: 'pointer'
-                      }}
-                    />
-                  );
-                })}
-              </div>
-
-              {/* Step By Step Table */}
-              <div style={{ marginTop: '1rem', border: '1px solid var(--border-soft)', borderRadius: '10px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--color-surface-secondary)', textAlign: 'left', borderBottom: '1px solid var(--border-soft)', color: 'var(--text-muted)' }}>
-                      <th style={{ padding: '0.6rem 0.85rem' }}>Blok</th>
-                      <th style={{ padding: '0.6rem 0.85rem' }}>Duur</th>
-                      <th style={{ padding: '0.6rem 0.85rem' }}>Streefvermogen</th>
-                      <th style={{ padding: '0.6rem 0.85rem' }}>Cadans</th>
-                      <th style={{ padding: '0.6rem 0.85rem' }}>Doel</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {workout.computedSteps.map((step, idx) => (
-                      <tr 
-                        key={step.id || idx}
-                        style={{ borderBottom: idx < workout.computedSteps.length - 1 ? '1px solid var(--border-soft)' : 'none' }}
-                      >
-                        <td style={{ padding: '0.65rem 0.85rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                          <span style={{ 
-                            display: 'inline-block', 
-                            width: '8px', 
-                            height: '8px', 
-                            borderRadius: '50%', 
-                            backgroundColor: getStepColor(step.targetFtpPercent), 
-                            marginRight: '6px' 
-                          }} />
-                          {step.name}
-                        </td>
-                        <td style={{ padding: '0.65rem 0.85rem', color: 'var(--text-muted)' }}>
-                          {step.formattedDuration}
-                        </td>
-                        <td style={{ padding: '0.65rem 0.85rem', fontWeight: 700, color: 'var(--color-primary)' }}>
-                          {step.targetWattsHigh > step.targetWattsLow 
-                            ? `${step.targetWattsLow} - ${step.targetWattsHigh} W` 
-                            : `${step.targetWattsLow} W`}
-                          <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '4px' }}>
-                            ({Math.round(step.targetFtpPercent * 100)}%)
-                          </span>
-                        </td>
-                        <td style={{ padding: '0.65rem 0.85rem', color: 'var(--text-muted)' }}>
-                          {step.targetCadence ? `${step.targetCadence} RPM` : '-'}
-                        </td>
-                        <td style={{ padding: '0.65rem 0.85rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                          {step.description || '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <WorkoutBlocksOverview workout={workout} maxHeight="380px" />
           )}
 
           {/* Completed Activity in Strava */}
