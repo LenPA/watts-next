@@ -5,13 +5,13 @@
  */
 
 import type { NormalizedActivity, AthleteProfileRecord, TrainingGoalRecord, AvailabilityRecord } from './db';
-import type { DailyFitnessRecord, FitnessSummary } from './physiology';
 import { 
   WORKOUT_TEMPLATES, 
   scaleWorkoutToMinutes, 
   type ComputedWorkout, 
   type WorkoutCategory 
 } from './workoutLibrary';
+import { formatLocalDateKey, type DailyFitnessRecord, type FitnessSummary } from './physiology';
 
 export interface PlannedWeekDay {
   date: Date;
@@ -82,6 +82,9 @@ export function generateWeekPlan(options: GeneratePlanOptions): PlannedWeekDay[]
 
   // Calculate Monday of current week if not supplied
   const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+
   let monday: Date;
   if (weekMonday) {
     monday = new Date(weekMonday);
@@ -93,10 +96,11 @@ export function generateWeekPlan(options: GeneratePlanOptions): PlannedWeekDay[]
   }
   monday.setHours(0, 0, 0, 0);
 
-  // Index activities by YYYY-MM-DD
+  // Index activities by YYYY-MM-DD using local athlete date
   const actsByDate = new Map<string, NormalizedActivity[]>();
   for (const act of activities) {
-    const d = (act.start_date || '').slice(0, 10);
+    const rawDate = act.start_date_local || act.start_date;
+    const d = rawDate ? rawDate.slice(0, 10) : '';
     if (d) {
       const list = actsByDate.get(d) || [];
       list.push(act);
@@ -125,11 +129,12 @@ export function generateWeekPlan(options: GeneratePlanOptions): PlannedWeekDay[]
   for (let i = 0; i < 7; i++) {
     const curDate = new Date(monday);
     curDate.setDate(monday.getDate() + i);
-    const dateKey = curDate.toISOString().slice(0, 10);
+    curDate.setHours(0, 0, 0, 0);
+    const dateKey = formatLocalDateKey(curDate);
 
-    const isToday = curDate.toDateString() === now.toDateString();
-    const isPast = curDate < now && !isToday;
-    const isFuture = curDate > now && !isToday;
+    const isToday = curDate.getTime() === startOfToday.getTime();
+    const isPast = curDate.getTime() < startOfToday.getTime();
+    const isFuture = curDate.getTime() > startOfToday.getTime();
 
     // Availability for this day
     const dayAvail = availMap.get(i) || {

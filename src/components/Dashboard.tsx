@@ -611,8 +611,10 @@ export default function Dashboard({
         }}>
           {/* Left Column: Today's Training Focus */}
           <div className="glass-panel" style={{
-            borderLeft: `5px solid ${typeColors[todayItem.plannedType].border}`,
-            background: `linear-gradient(135deg, ${typeColors[todayItem.plannedType].bg} 0%, var(--color-surface) 100%)`,
+            borderLeft: todayItem.isCompleted ? '5px solid var(--success)' : `5px solid ${typeColors[todayItem.plannedType].border}`,
+            background: todayItem.isCompleted 
+              ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, var(--color-surface) 100%)'
+              : `linear-gradient(135deg, ${typeColors[todayItem.plannedType].bg} 0%, var(--color-surface) 100%)`,
             padding: '1.25rem 1.5rem',
             display: 'flex',
             flexDirection: 'column',
@@ -622,42 +624,95 @@ export default function Dashboard({
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Sparkles size={16} color="var(--accent-primary)" />
+                  {todayItem.isCompleted ? (
+                    <CheckCircle2 size={16} color="var(--success)" />
+                  ) : (
+                    <Sparkles size={16} color="var(--accent-primary)" />
+                  )}
                   <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>
-                    Wat moet ik vandaag trainen? • {todayItem.dayName} {todayItem.dayNumber} {todayItem.monthName}
+                    {todayItem.isCompleted ? 'Training Voltooid! 🎉' : 'Wat moet ik vandaag trainen?'} • {todayItem.dayName} {todayItem.dayNumber} {todayItem.monthName}
                   </span>
                 </div>
-                <span style={{
-                  backgroundColor: typeColors[todayItem.plannedType].border,
-                  color: 'white',
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  padding: '0.15rem 0.55rem',
-                  borderRadius: '50px',
-                  textTransform: 'uppercase'
-                }}>
-                  {todayItem.plannedType}
-                </span>
-              </div>
-
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: '0 0 0.35rem 0' }}>
-                {todayItem.plannedTitle}
-              </h2>
-
-              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Clock size={14} /> {todayItem.plannedDuration}
-                </span>
-                {todayItem.plannedWatts !== '-' && (
-                  <span style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <Zap size={14} /> {todayItem.plannedWatts}
+                {todayItem.isCompleted ? (
+                  <span style={{
+                    backgroundColor: 'var(--success)',
+                    color: 'white',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '0.15rem 0.55rem',
+                    borderRadius: '50px',
+                    textTransform: 'uppercase',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                  }}>
+                    <Check size={11} /> Gereden
+                  </span>
+                ) : (
+                  <span style={{
+                    backgroundColor: typeColors[todayItem.plannedType].border,
+                    color: 'white',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '0.15rem 0.55rem',
+                    borderRadius: '50px',
+                    textTransform: 'uppercase'
+                  }}>
+                    {todayItem.plannedType}
                   </span>
                 )}
               </div>
 
-              <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.85rem 0' }}>
-                {todayItem.plannedReason}
-              </p>
+              {todayItem.isCompleted && todayItem.completedActivities.length > 0 ? (
+                <>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: '0 0 0.35rem 0' }}>
+                    {todayItem.completedActivities[0].name}
+                    {todayItem.completedActivities.length > 1 && ` (+${todayItem.completedActivities.length - 1} ritten)`}
+                  </h2>
+
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Clock size={14} /> {formatDuration(todayItem.completedActivities[0].moving_time || 0)}
+                    </span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      📍 {Math.round((todayItem.completedActivities[0].distance || 0) / 1000)} km
+                    </span>
+                    {todayItem.completedActivities[0].average_watts && (
+                      <span style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <Zap size={14} /> {Math.round(todayItem.completedActivities[0].average_watts)}W gem
+                      </span>
+                    )}
+                    <span style={{ color: 'var(--success)', fontSize: '0.85rem', fontWeight: 700 }}>
+                      Belasting: {Math.round(todayItem.totalActualTss || (todayItem.completedActivities[0] as unknown as Record<string, number>).tss || 0)} TSS
+                    </span>
+                  </div>
+
+                  <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.85rem 0' }}>
+                    Lekker gewerkt! Je hebt vandaag al getraind en deze rit is verwerkt in je fitness- en vermoeidheidstrends.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: '0 0 0.35rem 0' }}>
+                    {todayItem.plannedTitle}
+                  </h2>
+
+                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Clock size={14} /> {todayItem.plannedDuration}
+                    </span>
+                    {todayItem.plannedWatts !== '-' && (
+                      <span style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <Zap size={14} /> {todayItem.plannedWatts}
+                      </span>
+                    )}
+                  </div>
+
+                  <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.85rem 0' }}>
+                    {todayItem.plannedReason}
+                  </p>
+                </>
+              )}
             </div>
 
             {/* Bottom: Interval Opbouw & Zwift Button */}
@@ -677,7 +732,11 @@ export default function Dashboard({
                   style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                 >
                   <Activity size={13} style={{ color: 'var(--color-primary)' }} />
-                  <span>Bekijk {todayItem.workout.computedSteps.length} trainingsblokken</span>
+                  <span>
+                    {todayItem.isCompleted
+                      ? `Bekijk geplande intervallen (${todayItem.workout.computedSteps.length} blokken)`
+                      : `Bekijk ${todayItem.workout.computedSteps.length} trainingsblokken`}
+                  </span>
                 </button>
               ) : (
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -685,7 +744,7 @@ export default function Dashboard({
                 </div>
               )}
 
-              {analysis?.suggestions?.[0]?.zwiftAlternative && todayItem.plannedCategory !== 'rest' && (
+              {!todayItem.isCompleted && analysis?.suggestions?.[0]?.zwiftAlternative && todayItem.plannedCategory !== 'rest' && (
                 <a 
                   href={analysis.suggestions[0].zwiftAlternative.url}
                   target="_blank"

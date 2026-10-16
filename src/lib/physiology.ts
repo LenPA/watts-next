@@ -424,6 +424,16 @@ export function calculateActivityPhysiology(
  * 
  * Note: TSB represents training balance and freshness, not a clinical recovery test.
  */
+/**
+ * Format a Date object into a local YYYY-MM-DD string without UTC offset shifts.
+ */
+export function formatLocalDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function calculateFitnessTrends(
   activities: NormalizedActivity[],
   ftp: number,
@@ -449,9 +459,9 @@ export function calculateFitnessTrends(
   const dailyLoads = new Map<string, { totalTss: number; count: number }>();
 
   activities.forEach(act => {
-    if (!act.start_date) return;
-    const actDate = new Date(act.start_date);
-    const key = actDate.toISOString().split('T')[0];
+    const rawDate = act.start_date_local || act.start_date;
+    if (!rawDate) return;
+    const key = rawDate.slice(0, 10);
 
     const stream = streamsMap?.get(act.id);
     const phys = calculateActivityPhysiology(act, ftp, stream, maxHr);
@@ -476,7 +486,7 @@ export function calculateFitnessTrends(
   const monthNames = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
   while (cursor <= today) {
-    const key = cursor.toISOString().split('T')[0];
+    const key = formatLocalDateKey(cursor);
     const dayData = dailyLoads.get(key) || { totalTss: 0, count: 0 };
     const dailyTss = Math.round(dayData.totalTss * 10) / 10;
 

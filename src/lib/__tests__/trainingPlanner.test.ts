@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateWeekPlan } from '../trainingPlanner';
 import { scaleWorkoutToMinutes, WORKOUT_TEMPLATES } from '../workoutLibrary';
+import { formatLocalDateKey } from '../physiology';
 import type { AvailabilityRecord, AthleteProfileRecord, TrainingGoalRecord } from '../db';
 
 describe('Workout Library & Scaling Engine', () => {
@@ -203,7 +204,7 @@ describe('Deterministic Training Plan Generator', () => {
 
   it('respects user manual workout overrides', () => {
     const monday = new Date();
-    const dateKey = monday.toISOString().slice(0, 10);
+    const dateKey = formatLocalDateKey(monday);
     const plan = generateWeekPlan({
       profile: mockProfile,
       goal: mockGoal,
@@ -218,4 +219,61 @@ describe('Deterministic Training Plan Generator', () => {
     expect(overriddenDay?.workout.id).toBe('vo2max_40_20');
     expect(overriddenDay?.reasonCode).toBe('MANUAL_OVERRIDE');
   });
+
+  it('correctly binds a Friday Zwift activity to Friday (not Saturday) regardless of local midnight timezone offsets', () => {
+    // Simulate Monday Oct 12, 2026
+    const monday = new Date(2026, 9, 12, 0, 0, 0, 0); // Oct is month index 9
+    
+    // Activity on Friday Oct 16, 2026 at 13:00 local time
+    const fridayActivity = {
+      id: 9999,
+      name: 'Zwift - VO2 Max Workout',
+      start_date: '2026-10-16T11:00:00Z',
+      start_date_local: '2026-10-16T13:00:00',
+      type: 'Ride',
+      sport_type: 'VirtualRide',
+      distance: 23000,
+      moving_time: 2580,
+      elapsed_time: 2600,
+      total_elevation_gain: 150,
+      average_watts: 183,
+      weighted_average_watts: 215,
+      max_watts: 450,
+      device_watts: true,
+      has_heartrate: true,
+      average_heartrate: 152,
+      max_heartrate: 178,
+      average_cadence: 85,
+      trainer: true,
+      commute: false,
+      suffer_score: 54,
+      has_stream: false,
+      raw_json: {},
+      created_at: Date.now(),
+      updated_at: Date.now()
+    };
+
+    const plan = generateWeekPlan({
+      profile: mockProfile,
+      goal: mockGoal,
+      availability: userAvailability,
+      activities: [fridayActivity],
+      weekMonday: monday
+    });
+
+    const friday = plan[4];
+    const saturday = plan[5];
+
+    expect(friday.dayName).toBe('Vrijdag');
+    expect(friday.dateKey).toBe('2026-10-16');
+    expect(friday.isCompleted).toBe(true);
+    expect(friday.completedActivities).toHaveLength(1);
+    expect(friday.completedActivities[0].name).toBe('Zwift - VO2 Max Workout');
+
+    expect(saturday.dayName).toBe('Zaterdag');
+    expect(saturday.dateKey).toBe('2026-10-17');
+    expect(saturday.isCompleted).toBe(false);
+    expect(saturday.completedActivities).toHaveLength(0);
+  });
 });
+
