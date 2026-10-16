@@ -24,6 +24,7 @@ import ActivityDetailModal from './ActivityDetailModal';
 import WorkoutDetailModal from './WorkoutDetailModal';
 import AdaptiveReplanBanner from './AdaptiveReplanBanner';
 import DataManagementModal from './DataManagementModal';
+import AvailabilityModal from './AvailabilityModal';
 import { generateAdaptiveReplanProposal, acceptProposal, declineProposal } from '../lib/adaptiveCoach';
 import { downloadZwoFile } from '../lib/zwiftExport';
 import { 
@@ -46,7 +47,9 @@ import {
   User,
   ChevronDown,
   ChevronUp,
-  Download
+  Download,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 
 export interface AthleteProfile {
@@ -307,6 +310,38 @@ export default function Dashboard({
     return `${mins}m`;
   };
 
+  // Week navigation state (0 = current week, 1 = next week, -1 = last week)
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+  const [showAvailabilityModal, setShowAvailabilityModal] = useState<boolean>(false);
+  const [focusedAvailabilityDay, setFocusedAvailabilityDay] = useState<number | null>(null);
+
+  // Calculate Monday of selected week
+  const selectedWeekMonday = useMemo(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1) + (weekOffset * 7);
+    const monday = new Date(now);
+    monday.setDate(diff);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+  }, [weekOffset]);
+
+  // Formatted week label (e.g. "Deze Week (12 okt – 18 okt)" or "Volgende Week (19 okt – 25 okt)")
+  const weekLabel = useMemo(() => {
+    const monday = new Date(selectedWeekMonday);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    const monthNames = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+    const startStr = `${monday.getDate()} ${monthNames[monday.getMonth()]}`;
+    const endStr = `${sunday.getDate()} ${monthNames[sunday.getMonth()]}`;
+
+    if (weekOffset === 0) return `Deze Week (${startStr} – ${endStr})`;
+    if (weekOffset === 1) return `Volgende Week (${startStr} – ${endStr})`;
+    if (weekOffset === -1) return `Vorige Week (${startStr} – ${endStr})`;
+    return `Week van ${startStr} – ${endStr}`;
+  }, [selectedWeekMonday, weekOffset]);
+
   // Build the 7 days of the current week (Monday to Sunday) via deterministic training planner
   const currentWeekDays: PlannedWeekDay[] = useMemo(() => {
     const acts = isDemo ? (analysis?.recentTrends || []) : rawActivities;
@@ -320,6 +355,22 @@ export default function Dashboard({
     });
   }, [athleteProfileRecord, ftp, trainingGoalRecord, weeklyAvailability, fitnessTrends, isDemo, analysis?.recentTrends, rawActivities, workoutOverrides]);
 
+  // Displayed week days (dynamic based on selected weekMonday)
+  const displayedWeekDays: PlannedWeekDay[] = useMemo(() => {
+    if (weekOffset === 0) return currentWeekDays;
+
+    const acts = isDemo ? (analysis?.recentTrends || []) : rawActivities;
+    return generateWeekPlan({
+      profile: athleteProfileRecord ? { ...athleteProfileRecord, ftp } : { ftp, weight: 75, max_heartrate: 190, experience_level: 'intermediate', created_at: Date.now(), updated_at: Date.now() },
+      goal: trainingGoalRecord,
+      availability: weeklyAvailability,
+      fitnessSummary: fitnessTrends,
+      activities: acts,
+      weekMonday: selectedWeekMonday,
+      workoutOverrides
+    });
+  }, [weekOffset, currentWeekDays, athleteProfileRecord, ftp, trainingGoalRecord, weeklyAvailability, fitnessTrends, isDemo, analysis?.recentTrends, rawActivities, selectedWeekMonday, workoutOverrides]);
+
   // Today's focus item
   const todayItem = useMemo(() => {
     return currentWeekDays.find(d => d.isToday) || currentWeekDays[4] || currentWeekDays[0];
@@ -328,8 +379,8 @@ export default function Dashboard({
   // Keep modal in sync with active plan state
   const activeModalDay = useMemo(() => {
     if (!selectedWorkoutDay) return null;
-    return currentWeekDays.find(d => d.dateKey === selectedWorkoutDay.dateKey) || selectedWorkoutDay;
-  }, [selectedWorkoutDay, currentWeekDays]);
+    return displayedWeekDays.find(d => d.dateKey === selectedWorkoutDay.dateKey) || selectedWorkoutDay;
+  }, [selectedWorkoutDay, displayedWeekDays]);
 
   // Filtered activity feed list
   const filteredActivities = useMemo(() => {
@@ -855,36 +906,119 @@ export default function Dashboard({
 
       {/* SECTION 2: 7-DAY WEEKLY SCHEDULE (DE WEEKPLANNING) */}
       <section style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Calendar size={20} color="var(--accent-primary)" />
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-              De Weekplanning
-            </h2>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginLeft: '0.5rem' }}>
-              (Maandag t/m Zondag)
-            </span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Calendar size={20} color="var(--accent-primary)" />
+              <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: 'var(--color-text-primary)', margin: 0 }}>
+                De Weekplanning
+              </h2>
+            </div>
+
+            {/* Week navigation control */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'var(--color-surface-secondary)',
+              border: '1px solid var(--border-soft)',
+              borderRadius: '8px',
+              padding: '0.15rem'
+            }}>
+              <button
+                onClick={() => setWeekOffset(prev => prev - 1)}
+                title="Vorige week bekijken"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-text-primary)',
+                  cursor: 'pointer',
+                  padding: '0.35rem 0.6rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: '6px'
+                }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, padding: '0.2rem 0.65rem', color: 'var(--color-text-primary)', whiteSpace: 'nowrap' }}>
+                {weekLabel}
+              </span>
+
+              <button
+                onClick={() => setWeekOffset(prev => prev + 1)}
+                title="Volgende week bekijken"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--color-text-primary)',
+                  cursor: 'pointer',
+                  padding: '0.35rem 0.6rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: '6px'
+                }}
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {weekOffset !== 0 && (
+              <button
+                onClick={() => setWeekOffset(0)}
+                className="btn-glass"
+                style={{ fontSize: '0.78rem', padding: '0.3rem 0.65rem', cursor: 'pointer' }}
+              >
+                Naar deze week
+              </button>
+            )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-endurance)' }} /> Duur (Z2)
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-threshold)' }} /> Drempel (Z4)
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-vo2max)' }} /> VO2 Max (Z5)
-            </span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-recovery)' }} /> Rust
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {/* Quick Availability Button */}
+            <button
+              onClick={() => {
+                setFocusedAvailabilityDay(null);
+                setShowAvailabilityModal(true);
+              }}
+              className="btn-glass"
+              style={{
+                fontSize: '0.8rem',
+                padding: '0.35rem 0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                cursor: 'pointer',
+                borderColor: 'var(--accent-primary)',
+                color: 'var(--color-text-primary)'
+              }}
+              title="Pas je wekelijkse trainingsuren en voorkeuren (binnen/buiten/rust) aan"
+            >
+              <Clock size={13} color="var(--accent-primary)" />
+              <span>Beschikbaarheid wijzigen</span>
+            </button>
+
+            {/* Zone Legend */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-endurance)' }} /> Duur (Z2)
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-threshold)' }} /> Drempel (Z4)
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-vo2max)' }} /> VO2 Max (Z5)
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-zone-recovery)' }} /> Rust
+              </span>
+            </div>
           </div>
         </div>
 
         {/* 7 Columns Grid */}
         <div className="week-grid">
-          {currentWeekDays.map((item, index) => {
+          {displayedWeekDays.map((item, index) => {
             const hasCompleted = item.completedActivities.length > 0;
             const completedFirst = item.completedActivities[0];
             const typeStyle = typeColors[item.plannedType];
@@ -901,7 +1035,7 @@ export default function Dashboard({
                 title="Klik voor gedetailleerde trainingsopbouw en doelen"
               >
                 {/* Day Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
                     <span style={{ fontWeight: 700, fontSize: '0.95rem', color: item.isToday ? 'var(--accent-secondary)' : 'white' }}>
                       {item.shortName}
@@ -930,6 +1064,39 @@ export default function Dashboard({
                       <CheckCircle2 size={15} />
                     </span>
                   )}
+                </div>
+
+                {/* Availability Badge (Clickable to edit this day) */}
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFocusedAvailabilityDay(item.dayOfWeek);
+                    setShowAvailabilityModal(true);
+                  }}
+                  style={{
+                    fontSize: '0.7rem',
+                    color: item.preference === 'rest' || item.availableMinutes === 0 ? 'var(--color-zone-recovery)' : 'var(--text-muted)',
+                    backgroundColor: 'var(--color-surface-secondary)',
+                    border: '1px solid var(--border-soft)',
+                    borderRadius: '6px',
+                    padding: '0.15rem 0.45rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    cursor: 'pointer',
+                    marginBottom: '0.5rem',
+                    width: 'fit-content',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title={`Beschikbaarheid voor ${item.dayName}: ${item.availableMinutes} min (${item.preference}). Klik om aan te passen.`}
+                >
+                  <Clock size={11} />
+                  <span>
+                    {item.preference === 'rest' || item.availableMinutes === 0 
+                      ? 'Rust (0m)' 
+                      : `${item.availableMinutes}m • ${item.preference === 'indoor' ? 'Binnen' : (item.preference === 'outdoor' ? 'Buiten' : 'Beide')}`}
+                  </span>
+                  <span style={{ fontSize: '0.65rem', opacity: 0.7 }}>✏️</span>
                 </div>
 
                 {/* Workout Block Content */}
@@ -1438,8 +1605,25 @@ export default function Dashboard({
       <WorkoutDetailModal
         day={activeModalDay}
         onClose={() => setSelectedWorkoutDay(null)}
-        onEditAvailability={() => setShowOnboardingModal(true)}
+        onEditAvailability={() => {
+          setSelectedWorkoutDay(null);
+          setShowAvailabilityModal(true);
+        }}
         onSelectWorkout={handleSelectWorkout}
+      />
+
+      {/* Week Availability Editor Modal */}
+      <AvailabilityModal
+        isOpen={showAvailabilityModal}
+        onClose={() => {
+          setShowAvailabilityModal(false);
+          setFocusedAvailabilityDay(null);
+        }}
+        currentSchedule={weeklyAvailability}
+        focusedDayOfWeek={focusedAvailabilityDay}
+        onSaved={(updatedSchedule) => {
+          setWeeklyAvailability(updatedSchedule);
+        }}
       />
 
       {/* Data Management & Backup Modal */}
