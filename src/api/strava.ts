@@ -8,14 +8,19 @@ import {
 } from '../lib/db';
 
 const CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || '213326';
-const CLIENT_SECRET = import.meta.env.VITE_STRAVA_CLIENT_SECRET || '';
+const CLIENT_SECRET = import.meta.env.VITE_STRAVA_CLIENT_SECRET || 'b202ec2067019b1de7bdcf6f607eea1a7460da35';
 
 /**
  * Generate a Strava OAuth authorization URL with CSRF state protection.
  */
 export function getStravaAuthUrl(): string {
   const state = crypto.randomUUID();
-  sessionStorage.setItem('strava_oauth_state', state);
+  try {
+    sessionStorage.setItem('strava_oauth_state', state);
+    localStorage.setItem('strava_oauth_state', state);
+  } catch (err) {
+    console.warn('Could not store OAuth state in browser storage:', err);
+  }
 
   const redirectUri = window.location.origin;
   const scope = 'read,activity:read_all';
@@ -24,8 +29,6 @@ export function getStravaAuthUrl(): string {
     redirectUri
   )}&approval_prompt=force&scope=${scope}&state=${state}`;
 }
-
-export const STRAVA_AUTH_URL = getStravaAuthUrl();
 
 export interface TokenResponse {
   token_type: string;
@@ -41,11 +44,16 @@ export interface TokenResponse {
  * Uses the serverless / dev proxy endpoint `/api/strava/token` to keep the client secret secure.
  */
 export async function exchangeToken(code: string, returnedState?: string | null): Promise<TokenResponse> {
-  const savedState = sessionStorage.getItem('strava_oauth_state');
+  const savedState = sessionStorage.getItem('strava_oauth_state') || localStorage.getItem('strava_oauth_state');
   if (savedState && returnedState && savedState !== returnedState) {
-    console.error('OAuth state mismatch! Potential CSRF attack.');
+    console.error('OAuth state mismatch! Potential CSRF attack.', { savedState, returnedState });
+    sessionStorage.removeItem('strava_oauth_state');
+    localStorage.removeItem('strava_oauth_state');
     throw new Error('OAuth state verification failed. Please try logging in again.');
   }
+
+  sessionStorage.removeItem('strava_oauth_state');
+  localStorage.removeItem('strava_oauth_state');
 
   // 1. Try serverless / Vite dev proxy endpoint
   try {

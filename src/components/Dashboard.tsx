@@ -415,13 +415,13 @@ export default function Dashboard({
             >
               <ArrowLeft size={14} /> Terug naar Home
             </button>
-            <a 
-              href={getStravaAuthUrl()} 
+            <button 
+              onClick={() => { window.location.href = getStravaAuthUrl(); }} 
               className="btn" 
-              style={{ padding: '0.35rem 0.85rem', fontSize: '0.85rem' }}
+              style={{ padding: '0.35rem 0.85rem', fontSize: '0.85rem', cursor: 'pointer' }}
             >
               Koppel jouw echte Strava
-            </a>
+            </button>
           </div>
         </div>
       )}
