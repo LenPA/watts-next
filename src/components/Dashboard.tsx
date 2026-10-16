@@ -39,7 +39,9 @@ import {
   Sparkles, 
   Search, 
   Check, 
-  User 
+  User,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 export interface AthleteProfile {
@@ -78,6 +80,7 @@ export default function Dashboard({
   const [selectedActivity, setSelectedActivity] = useState<NormalizedActivity | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedSportFilter, setSelectedSportFilter] = useState<string>('all');
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState<boolean>(false);
   const [workoutOverrides, setWorkoutOverrides] = useState<Record<string, string>>(() => {
     try {
       return JSON.parse(localStorage.getItem('watts_workout_overrides') || '{}');
@@ -926,99 +929,155 @@ export default function Dashboard({
         </div>
       </section>
 
-      {/* SECTION 3: RECENT ACTIVITIES FEED (WAT JE EERDER HEBT GEDAAN) */}
-      <section>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center', 
-          marginBottom: '1.25rem', 
-          flexWrap: 'wrap', 
-          gap: '1rem' 
-        }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Activity size={20} color="var(--accent-primary)" />
-              <h2 style={{ fontSize: '1.35rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                Wat je eerder hebt gedaan
-              </h2>
-              <span style={{
-                background: 'var(--color-surface-secondary)',
-                color: 'var(--text-main)',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                padding: '0.15rem 0.55rem',
-                borderRadius: '50px'
-              }}>
-                {filteredActivities.length} ritten
-              </span>
-            </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
-              Chronologisch overzicht van al jouw gesynchroniseerde Strava fietsritten.
-            </p>
-          </div>
-
-          {/* Search & Filter Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {/* Filter pills */}
-            <div style={{ display: 'flex', background: 'var(--color-surface-secondary)', padding: '0.2rem', borderRadius: '8px', border: '1px solid var(--border-soft)' }}>
-              {[
-                { id: 'all', label: 'Alles' },
-                { id: 'outdoor', label: 'Buiten' },
-                { id: 'virtual', label: 'Zwift' },
-                { id: 'power', label: 'Met Wattage' }
-              ].map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => setSelectedSportFilter(f.id)}
-                  style={{
-                    background: selectedSportFilter === f.id ? 'var(--accent-primary)' : 'transparent',
-                    color: selectedSportFilter === f.id ? '#ffffff' : 'var(--text-muted)',
-                    border: 'none',
-                    padding: '0.35rem 0.75rem',
-                    borderRadius: '6px',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Input */}
+      {/* SECTION 3: RECENT ACTIVITIES FEED (WAT JE EERDER HEBT GEDAAN - COLLAPSIBLE) */}
+      <section style={{ marginBottom: '2.5rem' }}>
+        <div 
+          onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
+          style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            flexWrap: 'wrap', 
+            gap: '1rem',
+            cursor: 'pointer',
+            padding: '1rem 1.25rem',
+            borderRadius: '12px',
+            backgroundColor: 'var(--color-surface)',
+            border: '1px solid var(--border-soft)',
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'all 0.2s ease',
+            userSelect: 'none'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(249, 115, 22, 0.1)',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
-              background: 'var(--color-surface-secondary)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '8px',
-              padding: '0.35rem 0.75rem'
+              justifyContent: 'center',
+              color: 'var(--accent-primary)'
             }}>
-              <Search size={14} color="var(--text-muted)" />
-              <input 
-                type="text" 
-                placeholder="Zoek rit..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--color-text-primary)',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  width: '120px'
-                }}
-              />
+              <Activity size={20} />
             </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-text-primary)', margin: 0 }}>
+                  Wat je eerder hebt gedaan
+                </h2>
+                <span style={{
+                  background: 'var(--color-surface-secondary)',
+                  color: 'var(--text-main)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '0.15rem 0.55rem',
+                  borderRadius: '50px',
+                  border: '1px solid var(--border-soft)'
+                }}>
+                  {filteredActivities.length} ritten
+                </span>
+              </div>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.82rem', margin: '0.2rem 0 0 0' }}>
+                Chronologisch overzicht van al jouw gesynchroniseerde Strava fietsritten.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn-glass"
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                padding: '0.45rem 0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                cursor: 'pointer'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsHistoryExpanded(!isHistoryExpanded);
+              }}
+            >
+              <span>{isHistoryExpanded ? 'Inklappen' : `Toon ritten (${filteredActivities.length})`}</span>
+              {isHistoryExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </button>
           </div>
         </div>
 
-        {/* Activity Feed List */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+        {isHistoryExpanded && (
+          <div style={{ marginTop: '1.25rem' }}>
+            {/* Search & Filter Controls */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              marginBottom: '1rem', 
+              flexWrap: 'wrap', 
+              gap: '0.75rem' 
+            }}>
+              {/* Filter pills */}
+              <div style={{ display: 'flex', background: 'var(--color-surface-secondary)', padding: '0.2rem', borderRadius: '8px', border: '1px solid var(--border-soft)' }}>
+                {[
+                  { id: 'all', label: 'Alles' },
+                  { id: 'outdoor', label: 'Buiten' },
+                  { id: 'virtual', label: 'Zwift' },
+                  { id: 'power', label: 'Met Wattage' }
+                ].map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => setSelectedSportFilter(f.id)}
+                    style={{
+                      background: selectedSportFilter === f.id ? 'var(--accent-primary)' : 'transparent',
+                      color: selectedSportFilter === f.id ? '#ffffff' : 'var(--text-muted)',
+                      border: 'none',
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '6px',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Search Input */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                background: 'var(--color-surface-secondary)',
+                border: '1px solid var(--border-soft)',
+                borderRadius: '8px',
+                padding: '0.35rem 0.75rem'
+              }}>
+                <Search size={14} color="var(--text-muted)" />
+                <input 
+                  type="text" 
+                  placeholder="Zoek rit..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '0.85rem',
+                    outline: 'none',
+                    width: '140px'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Activity Feed List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
           {filteredActivities.map((act) => {
             const hasPower = Boolean(act.device_watts && act.average_watts);
             const hasHr = Boolean(act.has_heartrate && act.average_heartrate);
@@ -1226,8 +1285,10 @@ export default function Dashboard({
               Geen ritten gevonden die voldoen aan de zoekcriteria.
             </div>
           )}
+          </div>
         </div>
-      </section>
+      )}
+    </section>
 
       {/* Confirmation Modal for Clearing Local Data */}
       {showClearModal && typeof document !== 'undefined' && createPortal(
