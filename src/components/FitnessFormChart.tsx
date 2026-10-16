@@ -122,7 +122,9 @@ export default function FitnessFormChart({ summary }: FitnessFormChartProps) {
       boxShadow: 'var(--shadow-card)',
       display: 'flex',
       flexDirection: 'column',
-      gap: '1rem'
+      justifyContent: 'space-between',
+      height: '100%',
+      gap: '0.85rem'
     }}>
       {/* Top Banner: Metrics & Status */}
       <div style={{
@@ -308,7 +310,7 @@ export default function FitnessFormChart({ summary }: FitnessFormChartProps) {
       )}
 
       {/* Recharts Chart Area */}
-      <div style={{ width: '100%', height: '260px', marginTop: '0.25rem' }}>
+      <div style={{ width: '100%', height: '220px', marginTop: '0.25rem' }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={filteredSeries}

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   CheckCircle2, 
@@ -157,7 +158,7 @@ export default function ActivityDetailModal({
   const badge = getProvenanceBadge(physiology.provenance);
   const zoneDist = stream?.watts ? calculateZoneDistribution(stream.watts, ftp) : undefined;
 
-  return (
+  const modalContent = (
     <div style={{
       position: 'fixed',
       inset: 0,
@@ -166,7 +167,7 @@ export default function ActivityDetailModal({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
+      zIndex: 99999,
       padding: '1rem',
       animation: 'fadeIn 0.2s ease-out'
     }}>
@@ -573,4 +574,8 @@ export default function ActivityDetailModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }

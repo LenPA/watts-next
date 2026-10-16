@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, 
   ChevronRight, 
@@ -171,7 +172,7 @@ export default function OnboardingModal({
 
   const wkg = (ftp / (weight || 1)).toFixed(2);
 
-  return (
+  const modalContent = (
     <div style={{
       position: 'fixed',
       inset: 0,
@@ -180,7 +181,7 @@ export default function OnboardingModal({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      zIndex: 1000,
+      zIndex: 99999,
       padding: '1rem',
       animation: 'fadeIn 0.2s ease-out'
     }}>
@@ -808,4 +809,8 @@ export default function OnboardingModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }

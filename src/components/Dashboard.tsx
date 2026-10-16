@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { getStravaAuthUrl, syncActivities, fetchActivityStreams, getAthlete } from '../api/strava';
 import { 
   getAllActivities, 
@@ -486,10 +487,10 @@ export default function Dashboard({
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        marginBottom: '2rem', 
+        marginBottom: '1.25rem', 
         flexWrap: 'wrap', 
-        gap: '1.25rem',
-        paddingBottom: '1.5rem',
+        gap: '1rem',
+        paddingBottom: '1rem',
         borderBottom: '1px solid var(--border-soft)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -653,94 +654,79 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* SECTION 1: TODAY'S FOCUS HERO CARD */}
-      <section style={{ marginBottom: '2.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Sparkles size={18} color="var(--accent-primary)" />
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-              Wat moet ik vandaag trainen, en waarom?
-            </h2>
-          </div>
-          <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Vandaag: {todayItem.dayName} {todayItem.dayNumber} {todayItem.monthName}
-          </span>
-        </div>
-
-        <div className="glass-panel" style={{
-          borderLeft: `5px solid ${typeColors[todayItem.plannedType].border}`,
-          background: `linear-gradient(135deg, ${typeColors[todayItem.plannedType].bg} 0%, var(--color-surface) 100%)`,
-          padding: '1.75rem 2rem',
-          position: 'relative'
+      {/* SECTION 1: TODAY'S FOCUS & FITNESS STATUS HERO ROW (SIDE-BY-SIDE) */}
+      <section style={{ marginBottom: '2rem' }}>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))',
+          gap: '1.25rem',
+          alignItems: 'stretch'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
-            <div style={{ flex: '1 1 500px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          {/* Left Column: Today's Training Focus */}
+          <div className="glass-panel" style={{
+            borderLeft: `5px solid ${typeColors[todayItem.plannedType].border}`,
+            background: `linear-gradient(135deg, ${typeColors[todayItem.plannedType].bg} 0%, var(--color-surface) 100%)`,
+            padding: '1.25rem 1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: '1rem'
+          }}>
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Sparkles size={16} color="var(--accent-primary)" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>
+                    Wat moet ik vandaag trainen? • {todayItem.dayName} {todayItem.dayNumber} {todayItem.monthName}
+                  </span>
+                </div>
                 <span style={{
                   backgroundColor: typeColors[todayItem.plannedType].border,
                   color: 'white',
-                  fontSize: '0.75rem',
+                  fontSize: '0.72rem',
                   fontWeight: 700,
-                  padding: '0.2rem 0.6rem',
+                  padding: '0.15rem 0.55rem',
                   borderRadius: '50px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em'
+                  textTransform: 'uppercase'
                 }}>
                   {todayItem.plannedType}
                 </span>
+              </div>
 
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Clock size={15} /> {todayItem.plannedDuration}
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: '0 0 0.35rem 0' }}>
+                {todayItem.plannedTitle}
+              </h2>
+
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Clock size={14} /> {todayItem.plannedDuration}
                 </span>
-
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Zap size={15} color="var(--accent-secondary)" /> {todayItem.plannedWatts}
+                <span style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Zap size={14} /> {todayItem.plannedWatts}
                 </span>
               </div>
 
-              <h3 style={{ fontSize: '1.85rem', fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: '0.75rem' }}>
-                {todayItem.plannedTitle}
-              </h3>
-
-              <p style={{ color: 'var(--text-main)', fontSize: '1.05rem', lineHeight: '1.6', marginBottom: '1.25rem' }}>
+              <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.85rem 0' }}>
                 {analysis?.suggestions?.[0]?.reasoning || todayItem.plannedReason}
               </p>
-
-              {/* Structured Steps Preview */}
-              <div style={{
-                background: 'var(--color-surface-secondary)',
-                border: '1px solid var(--border-soft)',
-                borderRadius: '8px',
-                padding: '0.85rem 1.25rem',
-                display: 'flex',
-                gap: '1rem',
-                flexWrap: 'wrap',
-                alignItems: 'center'
-              }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>Opbouw:</div>
-                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontSize: '0.85rem', color: 'var(--text-main)' }}>
-                  <span style={{ color: 'var(--success)' }}>15m Warmup</span>
-                  <span style={{ color: 'var(--text-muted)' }}>→</span>
-                  <span style={{ color: typeColors[todayItem.plannedType].text, fontWeight: 600 }}>Kernblokken ({todayItem.plannedWatts})</span>
-                  <span style={{ color: 'var(--text-muted)' }}>→</span>
-                  <span style={{ color: 'var(--text-muted)' }}>10m Cooldown</span>
-                </div>
-              </div>
             </div>
 
-            {/* Quick Action Box */}
+            {/* Bottom: Interval Opbouw & Zwift Button */}
             <div style={{
-              background: 'var(--color-surface-secondary)',
-              border: '1px solid var(--border-soft)',
-              borderRadius: '12px',
-              padding: '1.25rem',
-              minWidth: '240px',
               display: 'flex',
-              flexDirection: 'column',
-              gap: '0.85rem'
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              paddingTop: '0.75rem',
+              borderTop: '1px solid var(--border-soft)'
             }}>
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
-                Workout Acties
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>15m Warmup</span>
+                <span>→</span>
+                <strong style={{ color: typeColors[todayItem.plannedType].text }}>Kern ({todayItem.plannedWatts})</strong>
+                <span>→</span>
+                <span>10m Cooldown</span>
               </div>
 
               {analysis?.suggestions?.[0]?.zwiftAlternative && (
@@ -749,27 +735,23 @@ export default function Dashboard({
                   target="_blank"
                   rel="noreferrer"
                   className="btn"
-                  style={{ fontSize: '0.85rem', padding: '0.6rem 1rem' }}
+                  style={{ fontSize: '0.8rem', padding: '0.45rem 0.9rem' }}
                 >
-                  <Bike size={16} /> Open in Zwift
+                  <Bike size={14} /> Open in Zwift
                 </a>
               )}
-
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
-                💡 <em>Zodra je rit op Strava staat, analyseert de coach deze automatisch tegen je weekplan.</em>
-              </div>
             </div>
+          </div>
+
+          {/* Right Column: Fitness & Form (CTL / ATL / TSB) */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <FitnessFormChart summary={fitnessTrends} />
           </div>
         </div>
       </section>
 
-      {/* SECTION 1.5: FITNESS, FATIGUE & FORM (90-DAGELIJKSE EWMA GRAFIEK) */}
-      <section style={{ marginBottom: '2.5rem' }}>
-        <FitnessFormChart summary={fitnessTrends} />
-      </section>
-
       {/* SECTION 2: 7-DAY WEEKLY SCHEDULE (DE WEEKPLANNING) */}
-      <section style={{ marginBottom: '3rem' }}>
+      <section style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Calendar size={20} color="var(--accent-primary)" />
@@ -1221,7 +1203,7 @@ export default function Dashboard({
       </section>
 
       {/* Confirmation Modal for Clearing Local Data */}
-      {showClearModal && (
+      {showClearModal && typeof document !== 'undefined' && createPortal(
         <div style={{
           position: 'fixed',
           inset: 0,
@@ -1230,7 +1212,7 @@ export default function Dashboard({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 100,
+          zIndex: 99999,
           padding: '1rem'
         }}>
           <div className="glass-panel" style={{ maxWidth: '440px', width: '100%', textAlign: 'center', padding: '2rem' }}>
@@ -1256,7 +1238,8 @@ export default function Dashboard({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Onboarding & Profile Modal */}
