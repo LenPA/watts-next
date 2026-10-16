@@ -56,6 +56,7 @@ export interface GeneratePlanOptions {
   fitnessHistory?: DailyFitnessRecord[];
   activities?: NormalizedActivity[];
   weekMonday?: Date;
+  workoutOverrides?: Record<string, string>;
 }
 
 const DUTCH_DAYS = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
@@ -72,7 +73,8 @@ export function generateWeekPlan(options: GeneratePlanOptions): PlannedWeekDay[]
     availability,
     fitnessHistory = [],
     activities = [],
-    weekMonday
+    weekMonday,
+    workoutOverrides = {}
   } = options;
 
   const ftp = profile?.ftp || 250;
@@ -155,9 +157,13 @@ export function generateWeekPlan(options: GeneratePlanOptions): PlannedWeekDay[]
       const loadVal = typeof anyA.tss === 'number' ? anyA.tss : (typeof anyA.analyzedLoad === 'number' ? anyA.analyzedLoad : (typeof a.suffer_score === 'number' ? a.suffer_score : 0));
       return loadVal > 70 || (a.weighted_average_watts != null && a.weighted_average_watts > ftp * 0.85);
     });
-    if (isCompleted && wasHighIntensityRide) {
-      intensiveSessionsCount++;
-      previousDayWasIntensive = true;
+    if (isCompleted) {
+      if (wasHighIntensityRide) {
+        intensiveSessionsCount++;
+        previousDayWasIntensive = true;
+      } else {
+        previousDayWasIntensive = false;
+      }
     }
 
     // Deterministic Workout Selector
@@ -170,8 +176,26 @@ export function generateWeekPlan(options: GeneratePlanOptions): PlannedWeekDay[]
     const availMinutes = Math.max(0, dayAvail.minutes);
     const isRestPreference = dayAvail.preference === 'rest' || availMinutes === 0;
 
-    // RULE 1: STRICT AVAILABILITY CONSTRAINT
-    if (isRestPreference) {
+    // Check manual override first
+    const overrideId = workoutOverrides[dateKey];
+
+    if (overrideId && WORKOUT_TEMPLATES[overrideId]) {
+      const template = WORKOUT_TEMPLATES[overrideId];
+      const targetMins = template.category === 'rest' ? 0 : (availMinutes || template.durationMinutes);
+      workout = scaleWorkoutToMinutes(template, targetMins, ftp);
+      plannedCategory = template.category;
+      if (template.category === 'vo2max' || template.category === 'anaerobic') plannedType = 'Power';
+      else if (template.category === 'threshold' || template.category === 'sweetspot') plannedType = 'Threshold';
+      else if (template.category === 'endurance' || template.category === 'tempo') plannedType = 'Endurance';
+      else plannedType = 'Rest';
+      plannedReason = `Handmatig geselecteerde training: ${template.title}.`;
+      reasonCode = 'MANUAL_OVERRIDE';
+      if (!isCompleted && (plannedType === 'Power' || plannedType === 'Threshold')) {
+        intensiveSessionsCount++;
+        previousDayWasIntensive = true;
+      }
+    } else if (isRestPreference) {
+      // RULE 1: STRICT AVAILABILITY CONSTRAINT
       workout = scaleWorkoutToMinutes(WORKOUT_TEMPLATES.rest, 0, ftp);
       plannedType = 'Rest';
       plannedCategory = 'rest';
@@ -183,6 +207,7 @@ export function generateWeekPlan(options: GeneratePlanOptions): PlannedWeekDay[]
     } else {
       // The athlete has available training time!
       const canDoIntensive = intensiveSessionsCount < 2 && !previousDayWasIntensive && latestTsb >= -25;
+      const isIndoorFocus = dayAvail.preference === 'indoor';
 
       // Weekend Endurance Days
       if (i === 5) { // Zaterdag
@@ -203,12 +228,15 @@ export function generateWeekPlan(options: GeneratePlanOptions): PlannedWeekDay[]
         previousDayWasIntensive = false;
       } else {
         // Midweek Training Days (Dinsdag, Woensdag, Donderdag, Vrijdag)
-        if (canDoIntensive && availMinutes >= 45) {
-          // Schedule an intensive quality workout
-          intensiveSessionsCount++;
-          previousDayWasIntensive = true;
+        const shouldDoIntensive = (canDoIntensive || (isToday && isIndoorFocus)) && availMinutes >= 45;
 
-          if (dayAvail.preference === 'indoor' || goalType === 'racing') {
+        if (shouldDoIntensive) {
+          if (!isCompleted) {
+            intensiveSessionsCount++;
+            previousDayWasIntensive = true;
+          }
+
+          if (isIndoorFocus || goalType === 'racing') {
             // VO2 Max 40/20 Micro-bursts (ideal for indoor or racing focus)
             workout = scaleWorkoutToMinutes(WORKOUT_TEMPLATES.vo2max_40_20, availMinutes, ftp);
             plannedType = 'Power';

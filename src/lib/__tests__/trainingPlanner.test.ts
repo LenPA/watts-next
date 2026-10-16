@@ -114,4 +114,108 @@ describe('Deterministic Training Plan Generator', () => {
     const intensiveDays = plan.filter(d => d.plannedType === 'Power' || d.plannedType === 'Threshold');
     expect(intensiveDays.length).toBeLessThanOrEqual(2);
   });
+
+  it('correctly plans VO2 max 40/20 on Friday when Tuesday and Wednesday had rides and Thursday was rest', () => {
+    const tuesdayDate = new Date();
+    // Monday = cur - (day === 0 ? 6 : day - 1)
+    const day = tuesdayDate.getDay();
+    const mondayDiff = tuesdayDate.getDate() - day + (day === 0 ? -6 : 1);
+    const mon = new Date(tuesdayDate);
+    mon.setDate(mondayDiff);
+    mon.setHours(0, 0, 0, 0);
+
+    const tue = new Date(mon);
+    tue.setDate(mon.getDate() + 1);
+    const wed = new Date(mon);
+    wed.setDate(mon.getDate() + 2);
+
+    const activities = [
+      {
+        id: 101,
+        name: 'Morning Commute',
+        start_date: tue.toISOString(),
+        start_date_local: tue.toISOString(),
+        type: 'Ride',
+        sport_type: 'Ride',
+        distance: 15000,
+        moving_time: 2400,
+        elapsed_time: 2500,
+        total_elevation_gain: 50,
+        average_watts: 106,
+        weighted_average_watts: null,
+        max_watts: null,
+        device_watts: false,
+        has_heartrate: false,
+        average_heartrate: null,
+        max_heartrate: null,
+        average_cadence: null,
+        trainer: false,
+        commute: true,
+        suffer_score: 62,
+        has_stream: false,
+        raw_json: {},
+        created_at: Date.now(),
+        updated_at: Date.now()
+      },
+      {
+        id: 102,
+        name: 'Afternoon Ride',
+        start_date: wed.toISOString(),
+        start_date_local: wed.toISOString(),
+        type: 'Ride',
+        sport_type: 'Ride',
+        distance: 63000,
+        moving_time: 7740,
+        elapsed_time: 8000,
+        total_elevation_gain: 300,
+        average_watts: 194,
+        weighted_average_watts: 210,
+        max_watts: null,
+        device_watts: true,
+        has_heartrate: true,
+        average_heartrate: 145,
+        max_heartrate: 175,
+        average_cadence: 88,
+        trainer: false,
+        commute: false,
+        suffer_score: 117,
+        has_stream: false,
+        raw_json: {},
+        created_at: Date.now(),
+        updated_at: Date.now()
+      }
+    ];
+
+    const plan = generateWeekPlan({
+      profile: mockProfile,
+      goal: mockGoal,
+      availability: userAvailability,
+      activities,
+      weekMonday: mon
+    });
+
+    const friday = plan[4];
+    expect(friday.dayName).toBe('Vrijdag');
+    expect(friday.plannedType).toBe('Power');
+    expect(friday.workout.id).toBe('vo2max_40_20');
+    expect(friday.plannedTitle).toContain('VO₂ Max 40/20');
+  });
+
+  it('respects user manual workout overrides', () => {
+    const monday = new Date();
+    const dateKey = monday.toISOString().slice(0, 10);
+    const plan = generateWeekPlan({
+      profile: mockProfile,
+      goal: mockGoal,
+      availability: userAvailability,
+      workoutOverrides: {
+        [dateKey]: 'vo2max_40_20'
+      }
+    });
+
+    const overriddenDay = plan.find(d => d.dateKey === dateKey);
+    expect(overriddenDay).toBeDefined();
+    expect(overriddenDay?.workout.id).toBe('vo2max_40_20');
+    expect(overriddenDay?.reasonCode).toBe('MANUAL_OVERRIDE');
+  });
 });

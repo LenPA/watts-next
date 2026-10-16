@@ -15,12 +15,14 @@ interface WorkoutDetailModalProps {
   day: PlannedWeekDay | null;
   onClose: () => void;
   onEditAvailability?: () => void;
+  onSelectWorkout?: (dateKey: string, templateId: string) => void;
 }
 
 export default function WorkoutDetailModal({
   day,
   onClose,
-  onEditAvailability
+  onEditAvailability,
+  onSelectWorkout
 }: WorkoutDetailModalProps) {
   if (!day) return null;
 
@@ -123,6 +125,55 @@ export default function WorkoutDetailModal({
         {/* Scrollable Body */}
         <div style={{ padding: '1.5rem', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           
+          {/* Workout Switcher Controls */}
+          {onSelectWorkout && (
+            <div style={{
+              background: 'var(--color-surface-secondary)',
+              border: '1px solid var(--border-soft)',
+              borderRadius: '12px',
+              padding: '0.75rem 1rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Zap size={16} style={{ color: 'var(--color-primary)' }} />
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                  Kies training voor deze dag:
+                </span>
+              </div>
+
+              <select
+                value={workout.id}
+                onChange={(e) => onSelectWorkout(day.dateKey, e.target.value)}
+                style={{
+                  background: 'var(--color-surface)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid var(--border-soft)',
+                  borderRadius: '8px',
+                  padding: '0.45rem 0.75rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="vo2max_40_20">⚡️ VO₂ Max 40/20 Intervallen (60m)</option>
+                <option value="vo2max_classic">⚡️ VO₂ Max 5×3m Blokken (60m)</option>
+                <option value="sweetspot_3x12">🎯 Sweet Spot Blokken 3×12m (65m)</option>
+                <option value="threshold_2x20">⚡️ Drempel Intervallen 2×20m (75m)</option>
+                <option value="tempo_cadence">⏱ Tempo Z3 Cadanswissels (75m)</option>
+                <option value="endurance_60">🚴 Aerobe Basis Duurtraining (60m)</option>
+                <option value="endurance_90">🚴 Zone 2 Duurrit (90m)</option>
+                <option value="endurance_long">🚴 Lange Duurrit (180m)</option>
+                <option value="recovery_spin">☕️ Actief Herstel / Losrijden (45m)</option>
+                <option value="rest">🛌 Volledige Rustdag (0m)</option>
+              </select>
+            </div>
+          )}
+
           {/* Motivation / Why Box */}
           <div style={{
             background: 'var(--color-surface-secondary)',

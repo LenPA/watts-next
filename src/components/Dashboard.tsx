@@ -78,6 +78,25 @@ export default function Dashboard({
   const [selectedActivity, setSelectedActivity] = useState<NormalizedActivity | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedSportFilter, setSelectedSportFilter] = useState<string>('all');
+  const [workoutOverrides, setWorkoutOverrides] = useState<Record<string, string>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('watts_workout_overrides') || '{}');
+    } catch {
+      return {};
+    }
+  });
+
+  const handleSelectWorkout = (dateKey: string, templateId: string) => {
+    setWorkoutOverrides(prev => {
+      const next = { ...prev, [dateKey]: templateId };
+      try {
+        localStorage.setItem('watts_workout_overrides', JSON.stringify(next));
+      } catch (e) {
+        console.warn('Could not save workout override:', e);
+      }
+      return next;
+    });
+  };
 
   // Check athlete profile, goal, and availability in Dexie on mount
   useEffect(() => {
@@ -288,14 +307,21 @@ export default function Dashboard({
       goal: trainingGoalRecord,
       availability: weeklyAvailability,
       fitnessSummary: fitnessTrends,
-      activities: acts
+      activities: acts,
+      workoutOverrides
     });
-  }, [athleteProfileRecord, ftp, trainingGoalRecord, weeklyAvailability, fitnessTrends, isDemo, analysis?.recentTrends, rawActivities]);
+  }, [athleteProfileRecord, ftp, trainingGoalRecord, weeklyAvailability, fitnessTrends, isDemo, analysis?.recentTrends, rawActivities, workoutOverrides]);
 
   // Today's focus item
   const todayItem = useMemo(() => {
     return currentWeekDays.find(d => d.isToday) || currentWeekDays[4] || currentWeekDays[0];
   }, [currentWeekDays]);
+
+  // Keep modal in sync with active plan state
+  const activeModalDay = useMemo(() => {
+    if (!selectedWorkoutDay) return null;
+    return currentWeekDays.find(d => d.dateKey === selectedWorkoutDay.dateKey) || selectedWorkoutDay;
+  }, [selectedWorkoutDay, currentWeekDays]);
 
   // Filtered activity feed list
   const filteredActivities = useMemo(() => {
@@ -1205,9 +1231,10 @@ export default function Dashboard({
 
       {/* Workout Detail Modal */}
       <WorkoutDetailModal
-        day={selectedWorkoutDay}
+        day={activeModalDay}
         onClose={() => setSelectedWorkoutDay(null)}
         onEditAvailability={() => setShowOnboardingModal(true)}
+        onSelectWorkout={handleSelectWorkout}
       />
 
       {/* Footer Info */}
