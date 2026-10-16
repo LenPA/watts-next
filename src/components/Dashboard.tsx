@@ -1,9 +1,20 @@
 import { useEffect, useState, useMemo } from 'react';
 import { getStravaAuthUrl, syncActivities, fetchActivityStreams, getAthlete } from '../api/strava';
-import { getAllActivities, getLastSyncTime, clearAllLocalData } from '../lib/db';
+import { 
+  getAllActivities, 
+  getLastSyncTime, 
+  clearAllLocalData, 
+  getAthleteProfile, 
+  type AthleteProfileRecord, 
+  type NormalizedActivity 
+} from '../lib/db';
 import { analyzeActivities, type AnalyzedData, type AnalyzedActivity } from '../lib/analysis';
 import { DEMO_ATHLETE, generateDemoActivities } from '../lib/demoData';
+import { calculateFitnessTrends } from '../lib/physiology';
 import ThemeSwitcher from './ThemeSwitcher';
+import FitnessFormChart from './FitnessFormChart';
+import OnboardingModal from './OnboardingModal';
+import ActivityDetailModal from './ActivityDetailModal';
 import { 
   Activity, 
   Zap, 
@@ -15,12 +26,13 @@ import {
   CheckCircle2, 
   ShieldAlert, 
   Cpu, 
-  Radio,
-  Clock,
-  Bike,
-  Sparkles,
-  Search,
-  Check
+  Radio, 
+  Clock, 
+  Bike, 
+  Sparkles, 
+  Search, 
+  Check, 
+  User 
 } from 'lucide-react';
 
 export interface AthleteProfile {
@@ -62,14 +74,35 @@ export default function Dashboard({
   const [syncStatusMessage, setSyncStatusMessage] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null);
+  const [athleteProfileRecord, setAthleteProfileRecord] = useState<AthleteProfileRecord | null>(null);
+  const [rawActivities, setRawActivities] = useState<NormalizedActivity[]>([]);
   const [analysis, setAnalysis] = useState<AnalyzedData | null>(null);
   const [ftp, setFtp] = useState<number>(Number(localStorage.getItem('strava_user_ftp')) || 250);
   const [totalActivitiesInDb, setTotalActivitiesInDb] = useState<number>(0);
   const [lastSyncTimestamp, setLastSyncTimestamp] = useState<number>(0);
   const [loadingStreamId, setLoadingStreamId] = useState<number | null>(null);
   const [showClearModal, setShowClearModal] = useState<boolean>(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState<boolean>(false);
+  const [selectedActivity, setSelectedActivity] = useState<NormalizedActivity | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedSportFilter, setSelectedSportFilter] = useState<string>('all');
+
+  // Check athlete profile in Dexie on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const profile = await getAthleteProfile();
+        if (profile) {
+          setAthleteProfileRecord(profile);
+          if (profile.ftp) setFtp(profile.ftp);
+        } else if (!isDemo && token) {
+          setShowOnboardingModal(true);
+        }
+      } catch (e) {
+        console.warn('Failed to load athlete profile:', e);
+      }
+    })();
+  }, [isDemo, token]);
 
   const syncData = async (force: boolean = false, currentFtp: number = ftp) => {
     if (isDemo) {
@@ -77,6 +110,7 @@ export default function Dashboard({
       setSyncStatusMessage('Voorbeelddata inladen...');
       setAthlete(DEMO_ATHLETE as AthleteProfile);
       const demoActs = generateDemoActivities();
+      setRawActivities(demoActs);
       setAnalysis(analyzeActivities(demoActs, currentFtp));
       setTotalActivitiesInDb(demoActs.length);
       setLastSyncTimestamp(Date.now());
@@ -126,6 +160,7 @@ export default function Dashboard({
 
       // 3. Load all activities from Dexie IndexedDB
       const allActivities = await getAllActivities();
+      setRawActivities(allActivities);
       setTotalActivitiesInDb(allActivities.length);
       const analyzed = analyzeActivities(allActivities, currentFtp);
       setAnalysis(analyzed);
@@ -168,13 +203,28 @@ export default function Dashboard({
     if (!loading && !syncing) {
       if (isDemo) {
         const demoActs = generateDemoActivities();
+        setRawActivities(demoActs);
         setAnalysis(analyzeActivities(demoActs, val));
       } else {
         getAllActivities().then(all => {
+          setRawActivities(all);
           setAnalysis(analyzeActivities(all, val));
         });
       }
     }
+  };
+
+  const handleOnboardingComplete = (profile: AthleteProfileRecord) => {
+    setAthleteProfileRecord(profile);
+    handleFtpChange(profile.ftp);
+  };
+
+  const handleStreamLoaded = async (activityId: number) => {
+    const all = await getAllActivities();
+    setRawActivities(all);
+    setAnalysis(analyzeActivities(all, ftp));
+    const updated = all.find(a => a.id === activityId);
+    if (updated) setSelectedActivity(updated);
   };
 
   const handleLoadStream = async (activityId: number) => {
@@ -182,8 +232,7 @@ export default function Dashboard({
     try {
       setLoadingStreamId(activityId);
       await fetchActivityStreams(activityId, token);
-      const all = await getAllActivities();
-      setAnalysis(analyzeActivities(all, ftp));
+      await handleStreamLoaded(activityId);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
       alert(`Kon streams niet ophalen: ${msg}`);
@@ -191,6 +240,11 @@ export default function Dashboard({
       setLoadingStreamId(null);
     }
   };
+
+  const fitnessTrends = useMemo(() => {
+    const acts = isDemo ? (analysis?.recentTrends || []) : rawActivities;
+    return calculateFitnessTrends(acts, ftp);
+  }, [isDemo, analysis?.recentTrends, rawActivities, ftp]);
 
   const handleClearAllData = async () => {
     await clearAllLocalData();
@@ -467,7 +521,7 @@ export default function Dashboard({
               </span>
             </div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              Welkom terug, <strong style={{ color: 'var(--text-main)' }}>{athlete?.firstname || 'Renner'}</strong> • Persoonlijk wielerschema
+              Welkom terug, <strong style={{ color: 'var(--text-main)' }}>{athlete?.firstname || 'Renner'}</strong>{athleteProfileRecord?.weight ? ` • ${(ftp / athleteProfileRecord.weight).toFixed(2)} W/kg (${athleteProfileRecord.weight} kg)` : ''} • Persoonlijk wielerschema
             </p>
           </div>
         </div>
@@ -507,6 +561,17 @@ export default function Dashboard({
             />
             <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 500 }}>W</span>
           </div>
+
+          {/* Profile & Goals Modal Trigger */}
+          <button 
+            className="btn-glass" 
+            onClick={() => setShowOnboardingModal(true)}
+            title="Beheer je fysiologisch profiel, trainingsdoelen en weekbeschikbaarheid"
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <User size={15} style={{ color: 'var(--color-primary)' }} />
+            <span>Profiel & Doelen</span>
+          </button>
 
           {/* Sync Button */}
           <button 
@@ -696,6 +761,11 @@ export default function Dashboard({
             </div>
           </div>
         </div>
+      </section>
+
+      {/* SECTION 1.5: FITNESS, FATIGUE & FORM (90-DAGELIJKSE EWMA GRAFIEK) */}
+      <section style={{ marginBottom: '2.5rem' }}>
+        <FitnessFormChart summary={fitnessTrends} />
       </section>
 
       {/* SECTION 2: 7-DAY WEEKLY SCHEDULE (DE WEEKPLANNING) */}
@@ -947,7 +1017,13 @@ export default function Dashboard({
             const rideDate = new Date(act.start_date || '');
 
             return (
-              <div key={act.id} className="activity-row">
+              <div 
+                key={act.id} 
+                className="activity-row"
+                onClick={() => setSelectedActivity(act)}
+                style={{ cursor: 'pointer', transition: 'transform 0.15s ease, border-color 0.15s ease' }}
+                title="Klik om ritdetails, vermogenszones en fysiologische berekening te bekijken"
+              >
                 {/* Left: Icon, Date, Title, Sport Type */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', minWidth: '280px', flex: '1 1 350px' }}>
                   <div style={{
@@ -1056,22 +1132,36 @@ export default function Dashboard({
 
                 {/* Right: Load Pill & Stream Actions */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexShrink: 0 }}>
-                  {/* Load Badge */}
+                  {/* Load & Provenance Badge */}
                   <div style={{ textAlign: 'right' }}>
                     <span style={{
-                      display: 'inline-block',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
                       padding: '0.25rem 0.65rem',
                       borderRadius: '6px',
                       fontSize: '0.8rem',
                       fontWeight: 700,
-                      backgroundColor: typeColors[act.analyzedType || 'Endurance'].bg,
-                      color: typeColors[act.analyzedType || 'Endurance'].text,
-                      border: `1px solid ${typeColors[act.analyzedType || 'Endurance'].border}40`
+                      backgroundColor: act.has_stream 
+                        ? 'rgba(16, 185, 129, 0.15)' 
+                        : (act.weighted_average_watts 
+                            ? 'rgba(6, 182, 212, 0.15)' 
+                            : (act.has_heartrate ? 'rgba(245, 158, 11, 0.15)' : 'var(--color-surface-hover)')),
+                      color: act.has_stream 
+                        ? '#10b981' 
+                        : (act.weighted_average_watts 
+                            ? '#06b6d4' 
+                            : (act.has_heartrate ? '#f59e0b' : 'var(--color-text-muted)')),
+                      border: act.has_stream 
+                        ? '1px solid rgba(16, 185, 129, 0.3)' 
+                        : (act.weighted_average_watts 
+                            ? '1px solid rgba(6, 182, 212, 0.3)' 
+                            : (act.has_heartrate ? '1px solid rgba(245, 158, 11, 0.3)' : '1px solid var(--color-border)'))
                     }}>
-                      Load {Math.round(act.analyzedLoad || 0)}
+                      {act.has_stream ? 'Stream NP' : (act.weighted_average_watts ? 'Strava NP' : (act.has_heartrate ? 'hrTSS' : 'TSS'))} {Math.round(act.analyzedLoad || 0)}
                     </span>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                      {act.analyzedType}
+                      {act.has_stream ? 'Gemeten' : (act.weighted_average_watts ? 'Berekend' : 'Geschat')}
                     </div>
                   </div>
 
@@ -1079,14 +1169,17 @@ export default function Dashboard({
                   {!isDemo && token && (
                     act.has_stream ? (
                       <span 
-                        title="Seconde-telemetrie lokaal opgeslagen in Dexie IndexedDB"
-                        style={{ fontSize: '0.75rem', color: 'var(--success)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                        title="Seconde-telemetrie lokaal gecachet (klik rit voor zone-verdeling)"
+                        style={{ fontSize: '0.75rem', color: '#10b981', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                       >
-                        <CheckCircle2 size={13} />
+                        <CheckCircle2 size={16} />
                       </span>
                     ) : (
                       <button
-                        onClick={() => handleLoadStream(act.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLoadStream(act.id);
+                        }}
                         disabled={isStreaming}
                         title="Haal seconde-per-seconde telemetrie op van Strava"
                         style={{
@@ -1165,6 +1258,25 @@ export default function Dashboard({
           </div>
         </div>
       )}
+
+      {/* Onboarding & Profile Modal */}
+      <OnboardingModal
+        isOpen={showOnboardingModal}
+        onClose={() => setShowOnboardingModal(false)}
+        onComplete={handleOnboardingComplete}
+        initialFtp={ftp}
+      />
+
+      {/* Activity Detail Modal */}
+      <ActivityDetailModal
+        activity={selectedActivity}
+        isOpen={Boolean(selectedActivity)}
+        onClose={() => setSelectedActivity(null)}
+        ftp={ftp}
+        token={token}
+        isDemo={isDemo}
+        onStreamLoaded={handleStreamLoaded}
+      />
 
       {/* Footer Info */}
       <footer style={{ marginTop: '3rem', paddingTop: '1.5rem', borderTop: '1px solid var(--border-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>

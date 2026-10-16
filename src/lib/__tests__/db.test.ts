@@ -157,3 +157,105 @@ describe('Dexie Database Operations', () => {
     expect(await db.activities.count()).toBe(0);
   });
 });
+
+describe('Phase 2 Dexie Tables: Profile, Goals & Availability', () => {
+  beforeEach(async () => {
+    await clearAllLocalData();
+  });
+
+  it('stores and retrieves athlete profile, and updates ftp history automatically', async () => {
+    const { getAthleteProfile, saveAthleteProfile, getFtpHistory } = await import('../db');
+
+    const profile = await saveAthleteProfile({
+      weight: 72.5,
+      ftp: 280,
+      max_heartrate: 192,
+      resting_heartrate: 48,
+      experience_level: 'advanced',
+      created_at: Date.now()
+    });
+
+    expect(profile.id).toBeDefined();
+
+    const retrieved = await getAthleteProfile();
+    expect(retrieved?.ftp).toBe(280);
+    expect(retrieved?.weight).toBe(72.5);
+    expect(retrieved?.experience_level).toBe('advanced');
+
+    const ftpHistory = await getFtpHistory();
+    expect(ftpHistory.length).toBe(1);
+    expect(ftpHistory[0].ftp).toBe(280);
+  });
+
+  it('resolves historical FTP according to date of activity', async () => {
+    const { addFtpHistory, getEffectiveFtpForDate } = await import('../db');
+
+    // In July FTP was 240, in September upgraded to 260, in October upgraded to 280
+    await addFtpHistory(240, '2026-07-01', 'Baseline test');
+    await addFtpHistory(260, '2026-09-01', 'Ramp test');
+    await addFtpHistory(280, '2026-10-01', 'Post-block test');
+
+    const ftpAug = await getEffectiveFtpForDate('2026-08-15T10:00:00Z');
+    expect(ftpAug).toBe(240);
+
+    const ftpSep = await getEffectiveFtpForDate('2026-09-20T10:00:00Z');
+    expect(ftpSep).toBe(260);
+
+    const ftpOct = await getEffectiveFtpForDate('2026-10-15T10:00:00Z');
+    expect(ftpOct).toBe(280);
+  });
+
+  it('stores and retrieves training goals with single active goal guarantee', async () => {
+    const { saveTrainingGoal, getActiveTrainingGoal, getTrainingGoals } = await import('../db');
+
+    await saveTrainingGoal({
+      type: 'gran_fondo',
+      title: 'Marmotte Alpes 2027',
+      target_date: '2027-07-04',
+      target_hours_per_week: 10,
+      active: true
+    });
+
+    const active1 = await getActiveTrainingGoal();
+    expect(active1?.title).toBe('Marmotte Alpes 2027');
+
+    // Save a new active goal
+    await saveTrainingGoal({
+      type: 'ftp_increase',
+      title: 'Verbreek 300W grens',
+      target_ftp: 305,
+      active: true
+    });
+
+    const active2 = await getActiveTrainingGoal();
+    expect(active2?.title).toBe('Verbreek 300W grens');
+
+    const allGoals = await getTrainingGoals();
+    expect(allGoals.length).toBe(2);
+    // Previous goal was automatically deactivated
+    const prevGoal = allGoals.find(g => g.title === 'Marmotte Alpes 2027');
+    expect(prevGoal?.active).toBe(false);
+  });
+
+  it('provides default availability and persists custom schedule', async () => {
+    const { getWeeklyAvailability, saveWeeklyAvailability } = await import('../db');
+
+    const defaults = await getWeeklyAvailability();
+    expect(defaults.length).toBe(7);
+    expect(defaults[0].day_name).toBe('Maandag');
+
+    // Customize Wednesday to 120 mins indoor
+    const customized = defaults.map(d => 
+      d.day_name === 'Woensdag' 
+        ? { ...d, minutes: 120, preference: 'indoor' as const } 
+        : d
+    );
+    await saveWeeklyAvailability(customized);
+
+    const updated = await getWeeklyAvailability();
+    const wed = updated.find(d => d.day_name === 'Woensdag');
+    expect(wed?.minutes).toBe(120);
+    expect(wed?.preference).toBe('indoor');
+  });
+});
+

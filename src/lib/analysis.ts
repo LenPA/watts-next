@@ -1,4 +1,5 @@
-import type { NormalizedActivity } from './db';
+import type { NormalizedActivity, ActivityStreamRecord } from './db';
+import { calculateActivityPhysiology, type ActivityPhysiology } from './physiology';
 
 export interface TrainingTarget {
   type: 'Endurance' | 'Threshold' | 'Power';
@@ -23,6 +24,7 @@ export interface AnalyzedActivity extends NormalizedActivity {
   average_speed?: number;
   analyzedType: 'Endurance' | 'Threshold' | 'Power';
   analyzedLoad: number;
+  physiology?: ActivityPhysiology;
 }
 
 export interface AnalyzedData {
@@ -36,71 +38,82 @@ export interface AnalyzedData {
 }
 
 /**
- * Heuristic classifier:
- * - If activity has heart rate or suffer score, use that.
- * - Otherwise use power or time to estimate intensity.
+ * Classifies an activity using Coggan physiological intensity thresholds
+ * and deterministic TSS/load from calculateActivityPhysiology.
  */
-function classifyActivity(activity: NormalizedActivity, userFtp: number): { type: 'Endurance' | 'Threshold' | 'Power'; load: number } {
+function classifyActivity(
+  activity: NormalizedActivity, 
+  userFtp: number,
+  stream?: ActivityStreamRecord | null
+): { type: 'Endurance' | 'Threshold' | 'Power'; load: number; physiology: ActivityPhysiology } {
+  const physiology = calculateActivityPhysiology(activity, userFtp, stream);
   let type: 'Endurance' | 'Threshold' | 'Power' = 'Endurance';
-  let load = 0;
-  
-  const movingHours = (activity.moving_time || 0) / 3600;
 
-  // Use suffer score or perceived exertion if present; fallback to moving time in hours * 40
-  if (activity.suffer_score) {
-    load = activity.suffer_score;
-  } else {
-    load = movingHours * 40;
-  }
-
-  const loadPerHour = movingHours > 0 ? load / movingHours : 0;
-
-  // Prioritize HR, then Power
-  if (activity.has_heartrate && activity.average_heartrate) {
-    if (activity.average_heartrate > 160 || (activity.max_heartrate && activity.max_heartrate > 185)) type = 'Power';
-    else if (activity.average_heartrate > 140) type = 'Threshold';
+  // Intensity classification based on power metrics if available
+  if (physiology.np && userFtp > 0) {
+    const intensity = physiology.np / userFtp;
+    if (intensity >= 1.05) type = 'Power';
+    else if (intensity >= 0.85) type = 'Threshold';
     else type = 'Endurance';
-  } else if (activity.device_watts && activity.average_watts) {
-    if (activity.average_watts > userFtp * 1.05) type = 'Power';
-    else if (activity.average_watts > userFtp * 0.85) type = 'Threshold';
+  } else if (activity.device_watts && activity.average_watts && userFtp > 0) {
+    if (activity.average_watts >= userFtp * 1.05) type = 'Power';
+    else if (activity.average_watts >= userFtp * 0.85) type = 'Threshold';
     else type = 'Endurance';
+  } else if (activity.has_heartrate && activity.average_heartrate) {
+    // Heart rate intensity classification
+    if (activity.average_heartrate > 162 || (activity.max_heartrate && activity.max_heartrate > 185)) {
+      type = 'Power';
+    } else if (activity.average_heartrate > 142) {
+      type = 'Threshold';
+    } else {
+      type = 'Endurance';
+    }
   } else {
     type = 'Endurance';
   }
 
-  // Sanity overrides:
-  if (activity.suffer_score && loadPerHour < 40) {
-    type = 'Endurance';
-  }
-  
-  if (load < 25) {
+  // Sanity check: recovery or very light rides (< 25 TSS) default to Endurance
+  if (physiology.load < 25) {
     type = 'Endurance';
   }
 
-  return { type, load };
+  return { type, load: physiology.load, physiology };
 }
 
-export function analyzeActivities(activities: NormalizedActivity[], userFtp: number): AnalyzedData {
+export function analyzeActivities(
+  activities: NormalizedActivity[], 
+  userFtp: number,
+  streamsMap?: Map<number, ActivityStreamRecord>
+): AnalyzedData {
   let enduranceLoad = 0;
   let thresholdLoad = 0;
   let powerLoad = 0;
 
-  // Look at the last 30 days
+  // Look at the last 30 days for suggestion balance, 90 days for trends
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const recent = activities.filter((a) => new Date(a.start_date || '') > thirtyDaysAgo);
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+  const recent = activities.filter((a) => new Date(a.start_date || '') > ninetyDaysAgo);
 
   const recentAnalyzed = recent.map((activity) => {
-    const { type, load } = classifyActivity(activity, userFtp);
-    if (type === 'Endurance') enduranceLoad += load;
-    else if (type === 'Threshold') thresholdLoad += load;
-    else if (type === 'Power') powerLoad += load;
+    const stream = streamsMap?.get(activity.id);
+    const { type, load, physiology } = classifyActivity(activity, userFtp, stream);
+    
+    // Only aggregate into target balance if within active 30-day block
+    if (new Date(activity.start_date || '') > thirtyDaysAgo) {
+      if (type === 'Endurance') enduranceLoad += load;
+      else if (type === 'Threshold') thresholdLoad += load;
+      else if (type === 'Power') powerLoad += load;
+    }
     
     return {
       ...activity,
       analyzedType: type,
-      analyzedLoad: load
+      analyzedLoad: Math.round(load),
+      physiology
     };
   });
 
