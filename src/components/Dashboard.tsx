@@ -6,16 +6,22 @@ import {
   getLastSyncTime, 
   clearAllLocalData, 
   getAthleteProfile, 
+  getActiveTrainingGoal,
+  getWeeklyAvailability,
   type AthleteProfileRecord, 
+  type TrainingGoalRecord,
+  type AvailabilityRecord,
   type NormalizedActivity 
 } from '../lib/db';
-import { analyzeActivities, type AnalyzedData, type AnalyzedActivity } from '../lib/analysis';
+import { analyzeActivities, type AnalyzedData } from '../lib/analysis';
 import { DEMO_ATHLETE, generateDemoActivities } from '../lib/demoData';
 import { calculateFitnessTrends } from '../lib/physiology';
+import { generateWeekPlan, type PlannedWeekDay } from '../lib/trainingPlanner';
 import ThemeSwitcher from './ThemeSwitcher';
 import FitnessFormChart from './FitnessFormChart';
 import OnboardingModal from './OnboardingModal';
 import ActivityDetailModal from './ActivityDetailModal';
+import WorkoutDetailModal from './WorkoutDetailModal';
 import { 
   Activity, 
   Zap, 
@@ -43,24 +49,6 @@ export interface AthleteProfile {
   [key: string]: unknown;
 }
 
-interface WeekDayItem {
-  date: Date;
-  dayName: string;
-  shortName: string;
-  dayNumber: number;
-  monthName: string;
-  dateKey: string; // YYYY-MM-DD
-  isToday: boolean;
-  isPast: boolean;
-  isFuture: boolean;
-  completedActivities: AnalyzedActivity[];
-  plannedType: 'Endurance' | 'Threshold' | 'Power' | 'Rest';
-  plannedTitle: string;
-  plannedDuration: string;
-  plannedWatts: string;
-  plannedReason: string;
-}
-
 export default function Dashboard({ 
   token, 
   isDemo = false, 
@@ -76,6 +64,9 @@ export default function Dashboard({
   const [syncError, setSyncError] = useState<string | null>(null);
   const [athlete, setAthlete] = useState<AthleteProfile | null>(null);
   const [athleteProfileRecord, setAthleteProfileRecord] = useState<AthleteProfileRecord | null>(null);
+  const [trainingGoalRecord, setTrainingGoalRecord] = useState<TrainingGoalRecord | null>(null);
+  const [weeklyAvailability, setWeeklyAvailability] = useState<AvailabilityRecord[]>([]);
+  const [selectedWorkoutDay, setSelectedWorkoutDay] = useState<PlannedWeekDay | null>(null);
   const [rawActivities, setRawActivities] = useState<NormalizedActivity[]>([]);
   const [analysis, setAnalysis] = useState<AnalyzedData | null>(null);
   const [ftp, setFtp] = useState<number>(Number(localStorage.getItem('strava_user_ftp')) || 250);
@@ -88,19 +79,25 @@ export default function Dashboard({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedSportFilter, setSelectedSportFilter] = useState<string>('all');
 
-  // Check athlete profile in Dexie on mount
+  // Check athlete profile, goal, and availability in Dexie on mount
   useEffect(() => {
     (async () => {
       try {
-        const profile = await getAthleteProfile();
+        const [profile, goal, schedule] = await Promise.all([
+          getAthleteProfile(),
+          getActiveTrainingGoal(),
+          getWeeklyAvailability()
+        ]);
         if (profile) {
           setAthleteProfileRecord(profile);
           if (profile.ftp) setFtp(profile.ftp);
         } else if (!isDemo && token) {
           setShowOnboardingModal(true);
         }
+        if (goal) setTrainingGoalRecord(goal);
+        if (schedule) setWeeklyAvailability(schedule);
       } catch (e) {
-        console.warn('Failed to load athlete profile:', e);
+        console.warn('Failed to load athlete profile / planner data:', e);
       }
     })();
   }, [isDemo, token]);
@@ -215,9 +212,19 @@ export default function Dashboard({
     }
   };
 
-  const handleOnboardingComplete = (profile: AthleteProfileRecord) => {
+  const handleOnboardingComplete = async (profile: AthleteProfileRecord) => {
     setAthleteProfileRecord(profile);
     handleFtpChange(profile.ftp);
+    try {
+      const [goal, schedule] = await Promise.all([
+        getActiveTrainingGoal(),
+        getWeeklyAvailability()
+      ]);
+      if (goal) setTrainingGoalRecord(goal);
+      if (schedule) setWeeklyAvailability(schedule);
+    } catch (e) {
+      console.warn('Failed to refresh goal or schedule after onboarding:', e);
+    }
   };
 
   const handleStreamLoaded = async (activityId: number) => {
@@ -273,107 +280,21 @@ export default function Dashboard({
     return `${mins}m`;
   };
 
-  // Build the 7 days of the current week (Monday to Sunday)
-  const currentWeekDays: WeekDayItem[] = useMemo(() => {
-    const now = new Date();
-    const day = now.getDay();
-    // Calculate Monday of current week
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(now);
-    monday.setDate(diff);
-
-    const dayNames = ['Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag', 'Zondag'];
-    const shortNames = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
-    const monthNames = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
-
-    // Default target plan mappings derived from suggestions
-    const primaryPlan = analysis?.suggestions?.[0]?.type || 'Endurance';
-    const secondaryPlan = analysis?.suggestions?.[1]?.type || 'Threshold';
-
-    const defaultPlans: Record<number, { type: 'Endurance' | 'Threshold' | 'Power' | 'Rest'; title: string; duration: string; watts: string; reason: string }> = {
-      0: { type: 'Rest', title: 'Hersteldag', duration: 'Rust', watts: '-', reason: 'Actieve rust na het trainingsweekend' },
-      1: { 
-        type: primaryPlan === 'Endurance' ? 'Endurance' : 'Threshold', 
-        title: primaryPlan === 'Endurance' ? 'Aerobe Duurtraining' : 'Sweet Spot Blokken', 
-        duration: '75 min', 
-        watts: primaryPlan === 'Endurance' ? `${Math.round(ftp * 0.65)}-${Math.round(ftp * 0.75)}W` : `${Math.round(ftp * 0.88)}-${Math.round(ftp * 0.92)}W`,
-        reason: 'Onderhoud van aerobe capaciteit en aerobe drempel' 
-      },
-      2: { 
-        type: 'Endurance', 
-        title: 'Zone 2 Duurrit', 
-        duration: '90 min', 
-        watts: `${Math.round(ftp * 0.60)}-${Math.round(ftp * 0.75)}W`, 
-        reason: 'Vetverbranding en mitochondriale opbouw' 
-      },
-      3: { 
-        type: secondaryPlan === 'Power' ? 'Power' : 'Threshold', 
-        title: secondaryPlan === 'Power' ? 'VO2 Max 40/20 Intervallen' : 'Drempel Intervallen', 
-        duration: '60 min', 
-        watts: secondaryPlan === 'Power' ? `${Math.round(ftp * 1.15)}-${Math.round(ftp * 1.25)}W` : `${Math.round(ftp * 0.95)}-${Math.round(ftp * 1.02)}W`, 
-        reason: 'Prikkelen van maximaal zuurstofopnamevermogen' 
-      },
-      4: { type: 'Rest', title: 'Rust / Koffierit', duration: '30-45 min', watts: `< ${Math.round(ftp * 0.55)}W`, reason: 'Spieren soepel houden richting het weekend' },
-      5: { 
-        type: 'Endurance', 
-        title: 'Lange Duurrit', 
-        duration: '2u 30m - 3u', 
-        watts: `${Math.round(ftp * 0.65)}-${Math.round(ftp * 0.75)}W`, 
-        reason: 'Duurvermogen en specifiek volume in Zone 2' 
-      },
-      6: { 
-        type: 'Endurance', 
-        title: 'Clubrit of Vrije Duur', 
-        duration: '2u - 2u 30m', 
-        watts: 'Vrij tempo', 
-        reason: 'Weekendrit met ontspannen tempo of heuvels' 
-      }
-    };
-
-    const days: WeekDayItem[] = [];
-
-    for (let i = 0; i < 7; i++) {
-      const cur = new Date(monday);
-      cur.setDate(monday.getDate() + i);
-      const dateKey = cur.toISOString().slice(0, 10);
-
-      const isToday = cur.toDateString() === now.toDateString();
-      const isPast = cur < now && !isToday;
-      const isFuture = cur > now && !isToday;
-
-      // Find any completed activities that occurred on this date
-      const completed = (analysis?.recentTrends || []).filter(act => {
-        const actDate = (act.start_date || '').slice(0, 10);
-        return actDate === dateKey;
-      });
-
-      const plan = defaultPlans[i];
-
-      days.push({
-        date: cur,
-        dayName: dayNames[i],
-        shortName: shortNames[i],
-        dayNumber: cur.getDate(),
-        monthName: monthNames[cur.getMonth()],
-        dateKey,
-        isToday,
-        isPast,
-        isFuture,
-        completedActivities: completed,
-        plannedType: plan.type,
-        plannedTitle: plan.title,
-        plannedDuration: plan.duration,
-        plannedWatts: plan.watts,
-        plannedReason: plan.reason
-      });
-    }
-
-    return days;
-  }, [analysis, ftp]);
+  // Build the 7 days of the current week (Monday to Sunday) via deterministic training planner
+  const currentWeekDays: PlannedWeekDay[] = useMemo(() => {
+    const acts = isDemo ? (analysis?.recentTrends || []) : rawActivities;
+    return generateWeekPlan({
+      profile: athleteProfileRecord ? { ...athleteProfileRecord, ftp } : { ftp, weight: 75, max_heartrate: 190, experience_level: 'intermediate', created_at: Date.now(), updated_at: Date.now() },
+      goal: trainingGoalRecord,
+      availability: weeklyAvailability,
+      fitnessSummary: fitnessTrends,
+      activities: acts
+    });
+  }, [athleteProfileRecord, ftp, trainingGoalRecord, weeklyAvailability, fitnessTrends, isDemo, analysis?.recentTrends, rawActivities]);
 
   // Today's focus item
   const todayItem = useMemo(() => {
-    return currentWeekDays.find(d => d.isToday) || currentWeekDays[3];
+    return currentWeekDays.find(d => d.isToday) || currentWeekDays[4] || currentWeekDays[0];
   }, [currentWeekDays]);
 
   // Filtered activity feed list
@@ -701,13 +622,15 @@ export default function Dashboard({
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                   <Clock size={14} /> {todayItem.plannedDuration}
                 </span>
-                <span style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Zap size={14} /> {todayItem.plannedWatts}
-                </span>
+                {todayItem.plannedWatts !== '-' && (
+                  <span style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Zap size={14} /> {todayItem.plannedWatts}
+                  </span>
+                )}
               </div>
 
               <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.85rem 0' }}>
-                {analysis?.suggestions?.[0]?.reasoning || todayItem.plannedReason}
+                {todayItem.plannedReason}
               </p>
             </div>
 
@@ -721,15 +644,22 @@ export default function Dashboard({
               paddingTop: '0.75rem',
               borderTop: '1px solid var(--border-soft)'
             }}>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>15m Warmup</span>
-                <span>→</span>
-                <strong style={{ color: typeColors[todayItem.plannedType].text }}>Kern ({todayItem.plannedWatts})</strong>
-                <span>→</span>
-                <span>10m Cooldown</span>
-              </div>
+              {todayItem.plannedCategory !== 'rest' ? (
+                <button
+                  onClick={() => setSelectedWorkoutDay(todayItem)}
+                  className="btn-glass"
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Activity size={13} style={{ color: 'var(--color-primary)' }} />
+                  <span>Bekijk {todayItem.workout.computedSteps.length} trainingsblokken</span>
+                </button>
+              ) : (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  Volledige rustdag • Spierherstel en adaptatie
+                </div>
+              )}
 
-              {analysis?.suggestions?.[0]?.zwiftAlternative && (
+              {analysis?.suggestions?.[0]?.zwiftAlternative && todayItem.plannedCategory !== 'rest' && (
                 <a 
                   href={analysis.suggestions[0].zwiftAlternative.url}
                   target="_blank"
@@ -789,10 +719,13 @@ export default function Dashboard({
             return (
               <div 
                 key={index} 
+                onClick={() => setSelectedWorkoutDay(item)}
                 className={`day-card ${item.isToday ? 'today' : ''}`}
                 style={{
-                  borderTop: item.isToday ? '3px solid var(--accent-primary)' : `3px solid ${typeStyle.border}`
+                  borderTop: item.isToday ? '3px solid var(--accent-primary)' : `3px solid ${typeStyle.border}`,
+                  cursor: 'pointer'
                 }}
+                title="Klik voor gedetailleerde trainingsopbouw en doelen"
               >
                 {/* Day Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
@@ -887,9 +820,18 @@ export default function Dashboard({
                   {/* Short Reason / Focus */}
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.35', marginTop: 'auto', paddingTop: '0.4rem' }}>
                     {hasCompleted ? (
-                      <span style={{ color: 'var(--success)' }}>Belasting: {Math.round(completedFirst.analyzedLoad || 0)}</span>
+                      <span style={{ color: 'var(--success)' }}>
+                        Belasting: {Math.round(item.totalActualTss || (completedFirst as unknown as Record<string, number>).tss || (completedFirst as unknown as Record<string, number>).analyzedLoad || completedFirst.suffer_score || 0)} TSS
+                      </span>
                     ) : (
-                      item.plannedReason
+                      <>
+                        <span>{item.plannedReason}</span>
+                        {item.plannedCategory !== 'rest' && (
+                          <span style={{ display: 'block', color: 'var(--color-primary)', fontSize: '0.7rem', fontWeight: 600, marginTop: '0.25rem' }}>
+                            Bekijk stappen →
+                          </span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -1259,6 +1201,13 @@ export default function Dashboard({
         token={token}
         isDemo={isDemo}
         onStreamLoaded={handleStreamLoaded}
+      />
+
+      {/* Workout Detail Modal */}
+      <WorkoutDetailModal
+        day={selectedWorkoutDay}
+        onClose={() => setSelectedWorkoutDay(null)}
+        onEditAvailability={() => setShowOnboardingModal(true)}
       />
 
       {/* Footer Info */}
