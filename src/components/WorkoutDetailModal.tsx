@@ -7,9 +7,11 @@ import {
   Activity, 
   CheckCircle2, 
   HelpCircle,
-  BarChart3
+  BarChart3,
+  Download
 } from 'lucide-react';
 import type { PlannedWeekDay } from '../lib/trainingPlanner';
+import { downloadZwoFile } from '../lib/zwiftExport';
 
 interface WorkoutDetailModalProps {
   day: PlannedWeekDay | null;
@@ -390,13 +392,38 @@ export default function WorkoutDetailModal({
             </button>
           ) : <div />}
 
-          <button
-            onClick={onClose}
-            className="btn"
-            style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', cursor: 'pointer' }}
-          >
-            Sluiten
-          </button>
+          <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center' }}>
+            {!isRest && workout.computedSteps.length > 0 && (
+              <button
+                onClick={() => downloadZwoFile(workout)}
+                className="btn"
+                style={{
+                  padding: '0.5rem 1rem',
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #fc5200 0%, #ea580c 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: 600
+                }}
+                title="Download dit gestructureerde trainingsbestand (.zwo) direct voor Zwift"
+              >
+                <Download size={15} /> Download .zwo voor Zwift
+              </button>
+            )}
+
+            <button
+              onClick={onClose}
+              className="btn-glass"
+              style={{ padding: '0.5rem 1.25rem', fontSize: '0.85rem', cursor: 'pointer' }}
+            >
+              Sluiten
+            </button>
+          </div>
         </div>
       </div>
     </div>

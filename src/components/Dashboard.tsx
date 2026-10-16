@@ -22,6 +22,10 @@ import FitnessFormChart from './FitnessFormChart';
 import OnboardingModal from './OnboardingModal';
 import ActivityDetailModal from './ActivityDetailModal';
 import WorkoutDetailModal from './WorkoutDetailModal';
+import AdaptiveReplanBanner from './AdaptiveReplanBanner';
+import DataManagementModal from './DataManagementModal';
+import { generateAdaptiveReplanProposal, acceptProposal, declineProposal } from '../lib/adaptiveCoach';
+import { downloadZwoFile } from '../lib/zwiftExport';
 import { 
   Activity, 
   Zap, 
@@ -41,7 +45,8 @@ import {
   Check, 
   User,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Download
 } from 'lucide-react';
 
 export interface AthleteProfile {
@@ -348,6 +353,54 @@ export default function Dashboard({
     return list;
   }, [analysis, searchQuery, selectedSportFilter]);
 
+  const [showDataModal, setShowDataModal] = useState<boolean>(false);
+  const [dismissedProposalId, setDismissedProposalId] = useState<string | null>(null);
+
+  // Intelligent Adaptive Replan Proposal
+  const activeProposal = useMemo(() => {
+    if (!currentWeekDays || currentWeekDays.length === 0) return null;
+    const tsb = fitnessTrends?.currentTsb ?? 0;
+    const proposal = generateAdaptiveReplanProposal(currentWeekDays, tsb);
+    if (!proposal || proposal.id === dismissedProposalId) return null;
+    return proposal;
+  }, [currentWeekDays, fitnessTrends, dismissedProposalId]);
+
+  const handleAcceptReplan = () => {
+    if (!activeProposal) return;
+    const nextOverrides = acceptProposal(activeProposal, workoutOverrides);
+    setWorkoutOverrides(nextOverrides);
+    setDismissedProposalId(activeProposal.id);
+  };
+
+  const handleDeclineReplan = () => {
+    if (!activeProposal) return;
+    declineProposal(activeProposal.id);
+    setDismissedProposalId(activeProposal.id);
+  };
+
+  const handleDataRestored = async () => {
+    setShowDataModal(false);
+    const all = await getAllActivities();
+    setRawActivities(all);
+    setAnalysis(analyzeActivities(all, ftp));
+    const [profile, goal, schedule] = await Promise.all([
+      getAthleteProfile(),
+      getActiveTrainingGoal(),
+      getWeeklyAvailability()
+    ]);
+    if (profile) {
+      setAthleteProfileRecord(profile);
+      if (profile.ftp) setFtp(profile.ftp);
+    }
+    if (goal) setTrainingGoalRecord(goal);
+    if (schedule) setWeeklyAvailability(schedule);
+    try {
+      setWorkoutOverrides(JSON.parse(localStorage.getItem('watts_workout_overrides') || '{}'));
+    } catch {
+      // ignore
+    }
+  };
+
   // Colors & badges
   const typeColors = {
     Endurance: { bg: 'rgba(16, 185, 129, 0.12)', border: 'var(--color-zone-endurance)', text: 'var(--color-zone-endurance)', badge: 'bg-emerald' },
@@ -524,6 +577,17 @@ export default function Dashboard({
             <span>Profiel & Doelen</span>
           </button>
 
+          {/* Data & Backup Modal Trigger */}
+          <button 
+            className="btn-glass" 
+            onClick={() => setShowDataModal(true)}
+            title="Lokale data, backups exporteren/importeren en opslagbeveiliging"
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <Database size={15} style={{ color: 'var(--color-primary)' }} />
+            <span>Data & Backup</span>
+          </button>
+
           {/* Sync Button */}
           <button 
             className="btn-glass" 
@@ -602,6 +666,15 @@ export default function Dashboard({
           <ShieldAlert size={18} />
           <span>{syncError}</span>
         </div>
+      )}
+
+      {/* ADAPTIVE REPLANNING COACH BANNER */}
+      {activeProposal && (
+        <AdaptiveReplanBanner 
+          proposal={activeProposal}
+          onAccept={handleAcceptReplan}
+          onDecline={handleDeclineReplan}
+        />
       )}
 
       {/* SECTION 1: TODAY'S FOCUS & FITNESS STATUS HERO ROW (SIDE-BY-SIDE) */}
@@ -729,18 +802,30 @@ export default function Dashboard({
               borderTop: '1px solid var(--border-soft)'
             }}>
               {todayItem.plannedCategory !== 'rest' ? (
-                <button
-                  onClick={() => setSelectedWorkoutDay(todayItem)}
-                  className="btn-glass"
-                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                >
-                  <Activity size={13} style={{ color: 'var(--color-primary)' }} />
-                  <span>
-                    {todayItem.isCompleted
-                      ? `Bekijk geplande intervallen (${todayItem.workout.computedSteps.length} blokken)`
-                      : `Bekijk ${todayItem.workout.computedSteps.length} trainingsblokken`}
-                  </span>
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setSelectedWorkoutDay(todayItem)}
+                    className="btn-glass"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <Activity size={13} style={{ color: 'var(--color-primary)' }} />
+                    <span>
+                      {todayItem.isCompleted
+                        ? `Bekijk geplande intervallen (${todayItem.workout.computedSteps.length} blokken)`
+                        : `Bekijk ${todayItem.workout.computedSteps.length} trainingsblokken`}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => downloadZwoFile(todayItem.workout)}
+                    className="btn-glass"
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                    title="Download gestructureerd .zwo trainingsbestand voor Zwift"
+                  >
+                    <Download size={13} style={{ color: 'var(--accent-primary)' }} />
+                    <span>Download .zwo</span>
+                  </button>
+                </div>
               ) : (
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                   Volledige rustdag • Spierherstel en adaptatie
@@ -1355,6 +1440,14 @@ export default function Dashboard({
         onClose={() => setSelectedWorkoutDay(null)}
         onEditAvailability={() => setShowOnboardingModal(true)}
         onSelectWorkout={handleSelectWorkout}
+      />
+
+      {/* Data Management & Backup Modal */}
+      <DataManagementModal
+        isOpen={showDataModal}
+        onClose={() => setShowDataModal(false)}
+        onDataRestored={handleDataRestored}
+        onPromptClearData={() => setShowClearModal(true)}
       />
 
       {/* Footer Info */}
