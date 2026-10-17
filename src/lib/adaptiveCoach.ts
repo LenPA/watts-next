@@ -59,7 +59,12 @@ export function classifyDayExecution(day: PlannedWeekDay): DayExecutionAnalysis 
   const actualTss = Math.round(day.totalActualTss || 0);
   const plannedTss = Math.round(day.plannedTss || 0);
   const diff = actualTss - plannedTss;
-  const isRest = day.plannedCategory === 'rest';
+  const isRest =
+    day.plannedCategory === 'rest' ||
+    day.plannedCategory === 'recovery' ||
+    day.plannedType === 'Rest' ||
+    day.preference === 'rest' ||
+    day.availableMinutes === 0;
 
   if (day.isFuture) {
     return {
@@ -200,7 +205,14 @@ export function generateAdaptiveReplanProposal(
   // Check if a quality session was missed in the past few days of this week
   const missedIntensiveDay = weekPlan.find((day, idx) => {
     const analysis = analyses[idx];
+    const isConfiguredRest =
+      day.preference === 'rest' ||
+      day.availableMinutes === 0 ||
+      day.plannedType === 'Rest' ||
+      day.plannedCategory === 'rest';
+
     return (
+      !isConfiguredRest &&
       analysis.classification === 'missed' &&
       (day.plannedType === 'Power' || day.plannedType === 'Threshold')
     );
@@ -211,6 +223,7 @@ export function generateAdaptiveReplanProposal(
     const candidateDay = weekPlan.find(day => {
       if (!day.isToday && !day.isFuture) return false;
       if (day.availableMinutes < 45) return false;
+      if (day.preference === 'rest') return false;
       // Candidate should currently not be an intensive session
       return day.plannedType === 'Rest' || day.plannedType === 'Endurance';
     });

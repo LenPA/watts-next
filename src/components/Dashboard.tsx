@@ -1667,6 +1667,21 @@ export default function Dashboard({
         focusedDayOfWeek={focusedAvailabilityDay}
         onSaved={(updatedSchedule) => {
           setWeeklyAvailability(updatedSchedule);
+          setWorkoutOverrides(prev => {
+            const next = { ...prev };
+            currentWeekDays.forEach(d => {
+              const matching = updatedSchedule.find(s => s.day_of_week === d.dayOfWeek);
+              if (matching && (matching.minutes === 0 || matching.preference === 'rest')) {
+                delete next[d.dateKey];
+              }
+            });
+            try {
+              localStorage.setItem('watts_workout_overrides', JSON.stringify(next));
+            } catch (e) {
+              console.warn('Could not update workout overrides:', e);
+            }
+            return next;
+          });
         }}
       />
 

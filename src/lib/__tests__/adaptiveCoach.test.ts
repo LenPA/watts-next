@@ -87,6 +87,50 @@ describe('Adaptive Coach Feedback Loop', () => {
     expect(analysis.actualTss).toBe(90);
   });
 
+  it('classifies an unridden day as rest_as_planned when configured as rest or 0 minutes', () => {
+    const restDayByAvailability = createMockDay({
+      isPast: true,
+      isCompleted: false,
+      availableMinutes: 0,
+      preference: 'rest',
+      plannedType: 'Rest',
+      plannedCategory: 'rest'
+    });
+    const analysis = classifyDayExecution(restDayByAvailability);
+    expect(analysis.classification).toBe('rest_as_planned');
+  });
+
+  it('never proposes to shift an intensive workout if the day was configured as a rest day', () => {
+    const restDayWithStaleOverride = createMockDay({
+      dateKey: '2026-10-15',
+      dayOfWeek: 3,
+      dayName: 'Donderdag',
+      isPast: true,
+      isCompleted: false,
+      availableMinutes: 0,
+      preference: 'rest',
+      plannedType: 'Threshold', // Stale override or threshold label
+      plannedCategory: 'sweetspot'
+    });
+
+    const upcomingSaturday = createMockDay({
+      dateKey: '2026-10-17',
+      dayOfWeek: 5,
+      dayName: 'Zaterdag',
+      isPast: false,
+      isToday: false,
+      isFuture: true,
+      isCompleted: false,
+      availableMinutes: 180,
+      plannedType: 'Endurance',
+      plannedCategory: 'endurance'
+    });
+
+    const proposal = generateAdaptiveReplanProposal([restDayWithStaleOverride, upcomingSaturday], +5);
+    // Should NOT propose an inhaalsessie because the origin day was a rest day
+    expect(proposal).toBeNull();
+  });
+
   it('proposes to shift a missed intensive session when athlete freshness is good (TSB > -8)', () => {
     const missedDay = createMockDay({
       dateKey: '2026-10-15',
