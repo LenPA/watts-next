@@ -90,23 +90,23 @@ describe('Watts Next Theme Engine', () => {
     expect(lightTheme?.previewColors.primary).toBe('#EC4899');
   });
 
-  it('defaults to dark-performance when no theme is saved', () => {
-    expect(DEFAULT_THEME_ID).toBe('dark-performance');
-    expect(getStoredTheme()).toBe('dark-performance');
+  it('defaults to ice-blue-pink when no theme is saved', () => {
+    expect(DEFAULT_THEME_ID).toBe('ice-blue-pink');
+    expect(getStoredTheme()).toBe('ice-blue-pink');
   });
 
   it('persists and retrieves chosen theme from localStorage', () => {
-    setStoredTheme('ice-blue-pink');
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('ice-blue-pink');
-    expect(getStoredTheme()).toBe('ice-blue-pink');
-
     setStoredTheme('dark-performance');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark-performance');
     expect(getStoredTheme()).toBe('dark-performance');
+
+    setStoredTheme('ice-blue-pink');
+    expect(getStoredTheme()).toBe('ice-blue-pink');
   });
 
   it('falls back to default if stored theme is invalid', () => {
     localStorage.setItem(THEME_STORAGE_KEY, 'invalid-non-existent-theme');
-    expect(getStoredTheme()).toBe('dark-performance');
+    expect(getStoredTheme()).toBe('ice-blue-pink');
   });
 
   it('applies data-theme attribute on documentElement', () => {

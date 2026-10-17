@@ -13,20 +13,9 @@ export interface ThemeConfig {
 }
 
 export const THEME_STORAGE_KEY = 'watts-next-theme';
-export const DEFAULT_THEME_ID: ThemeId = 'dark-performance';
+export const DEFAULT_THEME_ID: ThemeId = 'ice-blue-pink';
 
 export const THEMES: ThemeConfig[] = [
-  {
-    id: 'dark-performance',
-    name: 'Dark Performance',
-    description: 'Donker en sportief met oranje Strava accenten',
-    mode: 'dark',
-    previewColors: {
-      background: '#141824',
-      surface: '#1c2232',
-      primary: '#fc4c02'
-    }
-  },
   {
     id: 'ice-blue-pink',
     name: 'Ice Blue & Pink',
@@ -36,6 +25,17 @@ export const THEMES: ThemeConfig[] = [
       background: '#EAF4FF',
       surface: '#FFFFFF',
       primary: '#EC4899'
+    }
+  },
+  {
+    id: 'dark-performance',
+    name: 'Dark Performance',
+    description: 'Donker en sportief met oranje Strava accenten',
+    mode: 'dark',
+    previewColors: {
+      background: '#141824',
+      surface: '#1c2232',
+      primary: '#fc4c02'
     }
   }
 ];
