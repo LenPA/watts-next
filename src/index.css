@@ -428,3 +428,14 @@ h1, h2, h3, h4, h5, h6 {
 @keyframes spin {
   100% { transform: rotate(360deg); }
 }
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.drawer-item:hover,
+.drawer-item:focus-visible {
+  background-color: var(--color-surface-secondary) !important;
+  outline: none;
+}

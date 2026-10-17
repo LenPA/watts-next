@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { getStravaAuthUrl, syncActivities, fetchActivityStreams, getAthlete } from '../api/strava';
 import { 
@@ -17,7 +17,6 @@ import { analyzeActivities, type AnalyzedData } from '../lib/analysis';
 import { DEMO_ATHLETE, generateDemoActivities } from '../lib/demoData';
 import { calculateFitnessTrends } from '../lib/physiology';
 import { generateWeekPlan, type PlannedWeekDay } from '../lib/trainingPlanner';
-import ThemeSwitcher from './ThemeSwitcher';
 import FitnessFormChart from './FitnessFormChart';
 import OnboardingModal from './OnboardingModal';
 import ActivityDetailModal from './ActivityDetailModal';
@@ -26,6 +25,7 @@ import WorkoutPowerProfile from './WorkoutPowerProfile';
 import AdaptiveReplanBanner from './AdaptiveReplanBanner';
 import DataManagementModal from './DataManagementModal';
 import AvailabilityModal from './AvailabilityModal';
+import NavigationDrawer from './NavigationDrawer';
 import { generateAdaptiveReplanProposal, acceptProposal, declineProposal } from '../lib/adaptiveCoach';
 import { downloadZwoFile } from '../lib/zwiftExport';
 import { 
@@ -44,13 +44,14 @@ import {
   Bike, 
   Sparkles, 
   Search, 
-  Check, 
-  User,
+  Check,
   ChevronDown,
   ChevronUp,
   Download,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Menu,
+  X
 } from 'lucide-react';
 
 export interface AthleteProfile {
@@ -97,6 +98,23 @@ export default function Dashboard({
       return {};
     }
   });
+
+  const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  const isAuthError = useMemo(() => {
+    if (!syncError) return false;
+    const lower = syncError.toLowerCase();
+    return (
+      lower.includes('authoriz') ||
+      lower.includes('autorisat') ||
+      lower.includes('unauthoriz') ||
+      lower.includes('401') ||
+      lower.includes('token') ||
+      lower.includes('verlopen') ||
+      lower.includes('expired')
+    );
+  }, [syncError]);
 
   const handleSelectWorkout = (dateKey: string, templateId: string) => {
     setWorkoutOverrides(prev => {
@@ -498,236 +516,298 @@ export default function Dashboard({
 
   return (
     <div className="container animate-fade-in">
-      {/* Demo Banner */}
+      {/* Demo Banner (Compact) */}
       {isDemo && (
         <div style={{
           background: 'linear-gradient(90deg, rgba(252, 76, 2, 0.15), rgba(249, 115, 22, 0.15))',
           border: '1px solid rgba(252, 76, 2, 0.3)',
-          borderRadius: '12px',
-          padding: '0.75rem 1.25rem',
-          marginBottom: '1.5rem',
+          borderRadius: '10px',
+          padding: '0.45rem 0.85rem',
+          marginBottom: '0.75rem',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '1rem'
+          gap: '0.5rem',
+          fontSize: '0.82rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ 
               background: 'var(--accent-primary)', 
               color: 'white', 
-              fontSize: '0.75rem', 
+              fontSize: '0.7rem', 
               fontWeight: 700, 
-              padding: '0.2rem 0.5rem', 
+              padding: '0.15rem 0.45rem', 
               borderRadius: '4px', 
               textTransform: 'uppercase' 
             }}>
               Demo Modus
             </span>
-            <span style={{ color: 'var(--text-main)', fontSize: '0.9rem' }}>
-              Interactieve preview met 10 realistische testritten.
+            <span style={{ color: 'var(--text-main)' }}>
+              Interactieve preview met 10 testritten.
             </span>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <button 
               onClick={onLogout} 
               className="btn-glass" 
-              style={{ padding: '0.35rem 0.75rem', fontSize: '0.85rem', cursor: 'pointer' }}
+              style={{ padding: '0.25rem 0.55rem', fontSize: '0.78rem', cursor: 'pointer' }}
             >
-              <ArrowLeft size={14} /> Terug naar Home
+              <ArrowLeft size={13} /> Home
             </button>
             <button 
               onClick={() => { window.location.href = getStravaAuthUrl(); }} 
               className="btn" 
-              style={{ padding: '0.35rem 0.85rem', fontSize: '0.85rem', cursor: 'pointer' }}
+              style={{ padding: '0.25rem 0.65rem', fontSize: '0.78rem', cursor: 'pointer' }}
             >
-              Koppel jouw echte Strava
+              Koppel Strava
             </button>
           </div>
         </div>
       )}
 
-      {/* Top Header & App Bar */}
-      <header style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '1.25rem', 
-        flexWrap: 'wrap', 
-        gap: '1rem',
-        paddingBottom: '1rem',
-        borderBottom: '1px solid var(--border-soft)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 0 20px rgba(252, 76, 2, 0.35)'
-          }}>
-            <Zap size={24} color="white" />
+      {/* COMPACT APP BAR (Single horizontal bar: ~56-60px) */}
+      <header
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          minHeight: '56px',
+          padding: '0.5rem 0',
+          marginBottom: '1rem',
+          borderBottom: '1px solid var(--border-soft)'
+        }}
+      >
+        {/* Left: Logo & Application Name */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 16px rgba(236, 72, 153, 0.25)',
+              flexShrink: 0
+            }}
+          >
+            <Zap size={20} color="white" />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <h1 style={{ fontSize: '1.6rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--color-text-primary)' }}>
-                Watts <span className="text-gradient-orange">Next</span>
-              </h1>
-              <span style={{ 
-                background: 'var(--color-surface-secondary)', 
-                color: 'var(--text-muted)', 
-                fontSize: '0.75rem', 
-                padding: '0.15rem 0.5rem', 
-                borderRadius: '6px' 
-              }}>
-                Adaptive Coach
-              </span>
-            </div>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              Welkom terug, <strong style={{ color: 'var(--text-main)' }}>{athlete?.firstname || 'Renner'}</strong>{athleteProfileRecord?.weight ? ` • ${(ftp / athleteProfileRecord.weight).toFixed(2)} W/kg (${athleteProfileRecord.weight} kg)` : ''} • Persoonlijk wielerschema
-            </p>
-          </div>
+          <h1
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              color: 'var(--color-text-primary)',
+              margin: 0,
+              lineHeight: 1
+            }}
+          >
+            Watts <span className="text-gradient-orange">Next</span>
+          </h1>
         </div>
 
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'wrap' }}>
-          {/* Theme Switcher */}
-          <ThemeSwitcher />
-
-          {/* FTP Control */}
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            background: 'var(--color-surface-secondary)', 
-            border: '1px solid var(--border-soft)', 
-            borderRadius: '10px', 
-            padding: '0.35rem 0.65rem',
-            gap: '0.5rem'
-          }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>FTP:</span>
-            <input 
-              type="number" 
+        {/* Right: Current FTP & Hamburger Menu */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+          {/* Compact FTP Badge / Quick Edit */}
+          <div
+            title="Huidige FTP (Watts) - Klik om aan te passen"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              background: 'var(--color-surface-secondary)',
+              border: '1px solid var(--border-soft)',
+              borderRadius: '8px',
+              padding: '0.25rem 0.55rem',
+              gap: '0.35rem'
+            }}
+          >
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+              FTP
+            </span>
+            <input
+              type="number"
               value={ftp}
               onChange={(e) => handleFtpChange(Number(e.target.value))}
-              style={{ 
-                width: '60px', 
-                background: 'transparent', 
-                border: 'none', 
-                color: 'var(--accent-secondary)', 
-                fontSize: '1.15rem', 
-                fontWeight: 700, 
+              style={{
+                width: '46px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--accent-secondary)',
+                fontSize: '0.95rem',
+                fontWeight: 700,
                 outline: 'none',
                 textAlign: 'right'
               }}
               min={50}
               max={500}
+              aria-label="Huidige FTP in Watts"
             />
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 500 }}>W</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600 }}>W</span>
           </div>
 
-          {/* Profile & Goals Modal Trigger */}
-          <button 
-            className="btn-glass" 
-            onClick={() => setShowOnboardingModal(true)}
-            title="Beheer je fysiologisch profiel, trainingsdoelen en weekbeschikbaarheid"
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-          >
-            <User size={15} style={{ color: 'var(--color-primary)' }} />
-            <span>Profiel & Doelen</span>
-          </button>
-
-          {/* Data & Backup Modal Trigger */}
-          <button 
-            className="btn-glass" 
-            onClick={() => setShowDataModal(true)}
-            title="Lokale data, backups exporteren/importeren en opslagbeveiliging"
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-          >
-            <Database size={15} style={{ color: 'var(--color-primary)' }} />
-            <span>Data & Backup</span>
-          </button>
-
-          {/* Sync Button */}
-          <button 
-            className="btn-glass" 
-            onClick={() => syncData(false)} 
-            disabled={syncing}
-            style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', cursor: 'pointer' }}
-          >
-            <RefreshCw size={15} className={syncing ? 'spinner' : ''} />
-            <span>{syncing ? 'Synchroniseren...' : 'Sync Strava'}</span>
-          </button>
-
-          {/* Logout / Clear */}
-          {!isDemo && (
-            <button 
-              onClick={() => setShowClearModal(true)}
-              title="Wis lokale data"
-              style={{
-                background: 'transparent',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
-                color: 'var(--danger)',
-                padding: '0.5rem 0.75rem',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem'
-              }}
-            >
-              <Trash2 size={14} />
-            </button>
-          )}
-
-          <button 
-            onClick={onLogout} 
+          {/* Hamburger Menu Button */}
+          <button
+            ref={menuButtonRef}
+            onClick={() => setIsMenuOpen(true)}
+            aria-label="Open navigatiemenu"
+            aria-expanded={isMenuOpen}
+            aria-controls="navigation-drawer"
             className="btn-glass"
-            style={{ padding: '0.5rem 0.9rem', fontSize: '0.85rem', cursor: 'pointer' }}
+            style={{
+              width: '38px',
+              height: '38px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              padding: 0,
+              color: 'var(--color-text-primary)'
+            }}
           >
-            {isDemo ? 'Sluit' : 'Uitloggen'}
+            <Menu size={20} />
           </button>
         </div>
       </header>
 
-      {/* Sync Status Toast/Notice */}
+      {/* Navigation Drawer */}
+      <NavigationDrawer
+        isOpen={isMenuOpen}
+        onClose={() => {
+          setIsMenuOpen(false);
+          menuButtonRef.current?.focus();
+        }}
+        athlete={athlete}
+        athleteProfileRecord={athleteProfileRecord}
+        ftp={ftp}
+        isDemo={isDemo}
+        syncing={syncing}
+        onOpenProfile={() => setShowOnboardingModal(true)}
+        onOpenDataBackup={() => setShowDataModal(true)}
+        onSyncStrava={() => syncData(false)}
+        onPromptClearData={() => setShowClearModal(true)}
+        onLogout={onLogout}
+      />
+
+      {/* Compact Sync Status Notice */}
       {syncStatusMessage && (
         <div style={{
           background: 'rgba(249, 115, 22, 0.1)',
           border: '1px solid rgba(249, 115, 22, 0.3)',
           borderRadius: '8px',
-          padding: '0.6rem 1rem',
-          marginBottom: '1.5rem',
+          padding: '0.45rem 0.85rem',
+          marginBottom: '0.85rem',
           color: 'var(--accent-secondary)',
           display: 'flex',
           alignItems: 'center',
+          justifyContent: 'space-between',
           gap: '0.5rem',
-          fontSize: '0.85rem'
+          fontSize: '0.82rem',
+          animation: 'fadeIn 0.2s ease-out'
         }}>
-          <RefreshCw size={14} className={syncing ? 'spinner' : ''} />
-          <span>{syncStatusMessage}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+            <RefreshCw size={13} className={syncing ? 'spinner' : ''} />
+            <span>{syncStatusMessage}</span>
+          </div>
+          {!syncing && (
+            <button
+              onClick={() => setSyncStatusMessage(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: '0.2rem',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+              title="Melding sluiten"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
       )}
 
+      {/* Compact Strava Error Notification */}
       {syncError && (
-        <div style={{
-          background: 'rgba(239, 68, 68, 0.1)',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: '8px',
-          padding: '0.75rem 1rem',
-          marginBottom: '1.5rem',
-          color: 'var(--danger)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          fontSize: '0.9rem'
-        }}>
-          <ShieldAlert size={18} />
-          <span>{syncError}</span>
+        <div
+          role="alert"
+          style={{
+            background: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '8px',
+            padding: '0.45rem 0.85rem',
+            marginBottom: '0.85rem',
+            color: 'var(--danger)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+            fontSize: '0.82rem',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, minWidth: '200px' }}>
+            <ShieldAlert size={16} style={{ flexShrink: 0 }} />
+            <span>{syncError}</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {isAuthError ? (
+              <button
+                onClick={() => {
+                  window.location.href = getStravaAuthUrl();
+                }}
+                className="btn"
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.6rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Opnieuw koppelen met Strava
+              </button>
+            ) : (
+              <button
+                onClick={() => syncData(false)}
+                className="btn-glass"
+                disabled={syncing}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.55rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <RefreshCw size={12} className={syncing ? 'spinner' : ''} />
+                <span>Opnieuw proberen</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setSyncError(null)}
+              title="Melding sluiten"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                padding: '0.2rem',
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              <X size={15} />
+            </button>
+          </div>
         </div>
       )}
 
