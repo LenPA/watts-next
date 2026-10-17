@@ -22,7 +22,7 @@ import FitnessFormChart from './FitnessFormChart';
 import OnboardingModal from './OnboardingModal';
 import ActivityDetailModal from './ActivityDetailModal';
 import WorkoutDetailModal from './WorkoutDetailModal';
-import WorkoutBlocksOverview from './WorkoutBlocksOverview';
+import WorkoutPowerProfile from './WorkoutPowerProfile';
 import AdaptiveReplanBanner from './AdaptiveReplanBanner';
 import DataManagementModal from './DataManagementModal';
 import AvailabilityModal from './AvailabilityModal';
@@ -377,6 +377,17 @@ export default function Dashboard({
     return currentWeekDays.find(d => d.isToday) || currentWeekDays[4] || currentWeekDays[0];
   }, [currentWeekDays]);
 
+  // Selected day for the primary training card (defaults to todayItem)
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+
+  const activeSelectedDay: PlannedWeekDay = useMemo(() => {
+    if (selectedDateKey) {
+      const found = displayedWeekDays.find(d => d.dateKey === selectedDateKey);
+      if (found) return found;
+    }
+    return todayItem;
+  }, [selectedDateKey, displayedWeekDays, todayItem]);
+
   // Keep modal in sync with active plan state
   const activeModalDay = useMemo(() => {
     if (!selectedWorkoutDay) return null;
@@ -729,201 +740,7 @@ export default function Dashboard({
         />
       )}
 
-      {/* SECTION 1: TODAY'S FOCUS & FITNESS STATUS HERO ROW (SIDE-BY-SIDE) */}
-      <section style={{ marginBottom: '2rem' }}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))',
-          gap: '1.25rem',
-          alignItems: 'stretch'
-        }}>
-          {/* Left Column: Today's Training Focus */}
-          <div className="glass-panel" style={{
-            borderLeft: todayItem.isCompleted ? '5px solid var(--success)' : `5px solid ${typeColors[todayItem.plannedType].border}`,
-            background: todayItem.isCompleted 
-              ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, var(--color-surface) 100%)'
-              : `linear-gradient(135deg, ${typeColors[todayItem.plannedType].bg} 0%, var(--color-surface) 100%)`,
-            padding: '1.25rem 1.5rem',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '1rem'
-          }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  {todayItem.isCompleted ? (
-                    <CheckCircle2 size={16} color="var(--success)" />
-                  ) : (
-                    <Sparkles size={16} color="var(--accent-primary)" />
-                  )}
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>
-                    {todayItem.isCompleted ? 'Training Voltooid! 🎉' : 'Wat moet ik vandaag trainen?'} • {todayItem.dayName} {todayItem.dayNumber} {todayItem.monthName}
-                  </span>
-                </div>
-                {todayItem.isCompleted ? (
-                  <span style={{
-                    backgroundColor: 'var(--success)',
-                    color: 'white',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    padding: '0.15rem 0.55rem',
-                    borderRadius: '50px',
-                    textTransform: 'uppercase',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.25rem'
-                  }}>
-                    <Check size={11} /> Gereden
-                  </span>
-                ) : (
-                  <span style={{
-                    backgroundColor: typeColors[todayItem.plannedType].border,
-                    color: 'white',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    padding: '0.15rem 0.55rem',
-                    borderRadius: '50px',
-                    textTransform: 'uppercase'
-                  }}>
-                    {todayItem.plannedType}
-                  </span>
-                )}
-              </div>
-
-              {todayItem.isCompleted && todayItem.completedActivities.length > 0 ? (
-                <>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: '0 0 0.35rem 0' }}>
-                    {todayItem.completedActivities[0].name}
-                    {todayItem.completedActivities.length > 1 && ` (+${todayItem.completedActivities.length - 1} ritten)`}
-                  </h2>
-
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <Clock size={14} /> {formatDuration(todayItem.completedActivities[0].moving_time || 0)}
-                    </span>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                      📍 {Math.round((todayItem.completedActivities[0].distance || 0) / 1000)} km
-                    </span>
-                    {todayItem.completedActivities[0].average_watts && (
-                      <span style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <Zap size={14} /> {Math.round(todayItem.completedActivities[0].average_watts)}W gem
-                      </span>
-                    )}
-                    <span style={{ color: 'var(--success)', fontSize: '0.85rem', fontWeight: 700 }}>
-                      Belasting: {Math.round(todayItem.totalActualTss || (todayItem.completedActivities[0] as unknown as Record<string, number>).tss || 0)} TSS
-                    </span>
-                  </div>
-
-                  <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.85rem 0' }}>
-                    Lekker gewerkt! Je hebt vandaag al getraind en deze rit is verwerkt in je fitness- en vermoeidheidstrends.
-                  </p>
-
-                  {/* Planned Workout Blocks Overview (shown even after ride) */}
-                  {todayItem.plannedCategory !== 'rest' && todayItem.workout && (
-                    <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
-                        Geplande trainingsblokken voor vandaag
-                      </div>
-                      <WorkoutBlocksOverview 
-                        workout={todayItem.workout} 
-                        compact={true}
-                        maxHeight="200px"
-                      />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: '0 0 0.35rem 0' }}>
-                    {todayItem.plannedTitle}
-                  </h2>
-
-                  <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '0.75rem' }}>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <Clock size={14} /> {todayItem.plannedDuration}
-                    </span>
-                    {todayItem.plannedWatts !== '-' && (
-                      <span style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <Zap size={14} /> {todayItem.plannedWatts}
-                      </span>
-                    )}
-                  </div>
-
-                  <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.5rem 0' }}>
-                    {todayItem.plannedReason}
-                  </p>
-
-                  {/* Interactive Structured Workout Blocks Overview (Always visible) */}
-                  {todayItem.plannedCategory !== 'rest' && todayItem.workout && (
-                    <WorkoutBlocksOverview 
-                      workout={todayItem.workout} 
-                      maxHeight="240px"
-                    />
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Bottom: Interval Opbouw & Zwift Button */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '0.75rem',
-              paddingTop: '0.75rem',
-              borderTop: '1px solid var(--border-soft)'
-            }}>
-              {todayItem.plannedCategory !== 'rest' ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => setSelectedWorkoutDay(todayItem)}
-                    className="btn-glass"
-                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                  >
-                    <Activity size={13} style={{ color: 'var(--color-primary)' }} />
-                    <span>Details & wissel workout</span>
-                  </button>
-
-                  <button
-                    onClick={() => downloadZwoFile(todayItem.workout)}
-                    className="btn-glass"
-                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                    title="Download gestructureerd .zwo trainingsbestand voor Zwift"
-                  >
-                    <Download size={13} style={{ color: 'var(--accent-primary)' }} />
-                    <span>Download .zwo</span>
-                  </button>
-                </div>
-              ) : (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Volledige rustdag • Spierherstel en adaptatie
-                </div>
-              )}
-
-              {!todayItem.isCompleted && analysis?.suggestions?.[0]?.zwiftAlternative && todayItem.plannedCategory !== 'rest' && (
-                <a 
-                  href={analysis.suggestions[0].zwiftAlternative.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn"
-                  style={{ fontSize: '0.8rem', padding: '0.45rem 0.9rem' }}
-                >
-                  <Bike size={14} /> Open in Zwift
-                </a>
-              )}
-            </div>
-          </div>
-
-          {/* Right Column: Fitness & Form (CTL / ATL / TSB) */}
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <FitnessFormChart summary={fitnessTrends} />
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 2: 7-DAY WEEKLY SCHEDULE (DE WEEKPLANNING) */}
+      {/* SECTION 1: FULL-WIDTH 7-DAY WEEKLY SCHEDULE (DE WEEKPLANNING) */}
       <section style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
@@ -1037,50 +854,57 @@ export default function Dashboard({
 
         {/* 7 Columns Grid */}
         <div className="week-grid">
-          {displayedWeekDays.map((item, index) => {
+          {displayedWeekDays.map((item) => {
             const hasCompleted = item.completedActivities.length > 0;
             const completedFirst = item.completedActivities[0];
             const typeStyle = typeColors[item.plannedType];
+            const isSelected = item.dateKey === activeSelectedDay.dateKey;
 
             return (
               <div 
-                key={index} 
-                onClick={() => setSelectedWorkoutDay(item)}
-                className={`day-card ${item.isToday ? 'today' : ''}`}
+                key={item.dateKey}
+                onClick={() => setSelectedDateKey(item.dateKey)}
+                className="day-card"
                 style={{
-                  borderTop: item.isToday ? '3px solid var(--accent-primary)' : `3px solid ${typeStyle.border}`,
-                  cursor: 'pointer'
+                  minHeight: '170px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  border: isSelected 
+                    ? '2px solid var(--accent-primary)' 
+                    : (item.isToday ? '1px solid var(--accent-secondary)' : '1px solid var(--border-soft)'),
+                  boxShadow: isSelected 
+                    ? '0 0 16px rgba(252, 76, 2, 0.35)' 
+                    : (item.isToday ? '0 0 10px rgba(59, 130, 246, 0.2)' : 'none'),
+                  transform: isSelected ? 'translateY(-2px)' : 'none',
+                  backgroundColor: isSelected ? 'var(--color-surface)' : 'var(--color-surface-secondary)',
+                  transition: 'all 0.18s ease'
                 }}
-                title="Klik voor gedetailleerde trainingsopbouw en doelen"
+                title={`Klik om de training voor ${item.dayName} te bekijken`}
               >
                 {/* Day Header */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                   <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.35rem' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.95rem', color: item.isToday ? 'var(--accent-secondary)' : 'white' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.95rem', color: isSelected ? 'var(--accent-primary)' : (item.isToday ? 'var(--accent-secondary)' : 'var(--color-text-primary)') }}>
                       {item.shortName}
                     </span>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    <span style={{ fontSize: '0.8rem', color: isSelected ? 'var(--color-text-primary)' : 'var(--text-muted)' }}>
                       {item.dayNumber} {item.monthName}
                     </span>
                   </div>
 
                   {item.isToday && (
-                    <span style={{
-                      backgroundColor: 'rgba(252, 76, 2, 0.2)',
-                      color: 'var(--accent-secondary)',
-                      fontSize: '0.65rem',
+                    <span style={{ 
+                      fontSize: '0.65rem', 
+                      backgroundColor: 'var(--color-primary)', 
+                      color: 'white', 
+                      padding: '0.1rem 0.4rem', 
+                      borderRadius: '50px',
                       fontWeight: 700,
-                      padding: '0.15rem 0.4rem',
-                      borderRadius: '4px',
                       textTransform: 'uppercase'
                     }}>
                       Vandaag
-                    </span>
-                  )}
-
-                  {hasCompleted && !item.isToday && (
-                    <span style={{ color: 'var(--success)' }} title="Rit voltooid">
-                      <CheckCircle2 size={15} />
                     </span>
                   )}
                 </div>
@@ -1095,7 +919,7 @@ export default function Dashboard({
                   style={{
                     fontSize: '0.7rem',
                     color: item.preference === 'rest' || item.availableMinutes === 0 ? 'var(--color-zone-recovery)' : 'var(--text-muted)',
-                    backgroundColor: 'var(--color-surface-secondary)',
+                    backgroundColor: 'var(--color-surface)',
                     border: '1px solid var(--border-soft)',
                     borderRadius: '6px',
                     padding: '0.15rem 0.45rem',
@@ -1187,7 +1011,7 @@ export default function Dashboard({
                         <span>{item.plannedReason}</span>
                         {item.plannedCategory !== 'rest' && (
                           <span style={{ display: 'block', color: 'var(--color-primary)', fontSize: '0.7rem', fontWeight: 600, marginTop: '0.25rem' }}>
-                            Bekijk stappen →
+                            Selecteer dag →
                           </span>
                         )}
                       </>
@@ -1197,6 +1021,207 @@ export default function Dashboard({
               </div>
             );
           })}
+        </div>
+      </section>
+
+      {/* SECTION 2: 2-COLUMN HERO ROW: SELECTED TRAINING (LEFT) & FITNESS CHART (RIGHT) */}
+      <section className="dashboard-main-columns">
+        {/* Left Column: Selected / Next Training Focus */}
+        <div className="glass-panel" style={{
+          borderLeft: activeSelectedDay.isCompleted 
+            ? '5px solid var(--success)' 
+            : `5px solid ${typeColors[activeSelectedDay.plannedType].border}`,
+          background: activeSelectedDay.isCompleted 
+            ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, var(--color-surface) 100%)'
+            : `linear-gradient(135deg, ${typeColors[activeSelectedDay.plannedType].bg} 0%, var(--color-surface) 100%)`,
+          padding: '1.25rem 1.5rem',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          gap: '0.85rem'
+        }}>
+          <div>
+            {/* Header with day label & Naar Vandaag button */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {activeSelectedDay.isCompleted ? (
+                  <CheckCircle2 size={16} color="var(--success)" />
+                ) : (
+                  <Sparkles size={16} color="var(--accent-primary)" />
+                )}
+                <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-muted)' }}>
+                  {activeSelectedDay.isToday 
+                    ? (activeSelectedDay.isCompleted ? 'Training Voltooid! 🎉' : 'Wat moet ik vandaag trainen?')
+                    : `Geselecteerd: ${activeSelectedDay.dayName} ${activeSelectedDay.dayNumber} ${activeSelectedDay.monthName}`}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                {activeSelectedDay.isToday ? (
+                  <span style={{
+                    backgroundColor: 'var(--color-primary)',
+                    color: 'white',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '0.15rem 0.55rem',
+                    borderRadius: '50px',
+                    textTransform: 'uppercase'
+                  }}>
+                    Vandaag
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDateKey(todayItem.dateKey)}
+                    className="btn-glass"
+                    style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem', cursor: 'pointer' }}
+                  >
+                    Terug naar vandaag
+                  </button>
+                )}
+
+                {activeSelectedDay.isCompleted && (
+                  <span style={{
+                    backgroundColor: 'var(--success)',
+                    color: 'white',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '0.15rem 0.55rem',
+                    borderRadius: '50px',
+                    textTransform: 'uppercase',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                  }}>
+                    <Check size={11} /> Gereden
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Completed Activity View */}
+            {activeSelectedDay.isCompleted && activeSelectedDay.completedActivities.length > 0 ? (
+              <>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: '0 0 0.35rem 0' }}>
+                  {activeSelectedDay.completedActivities[0].name}
+                  {activeSelectedDay.completedActivities.length > 1 && ` (+${activeSelectedDay.completedActivities.length - 1} ritten)`}
+                </h2>
+
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Clock size={14} /> {formatDuration(activeSelectedDay.completedActivities[0].moving_time || 0)}
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                    📍 {Math.round((activeSelectedDay.completedActivities[0].distance || 0) / 1000)} km
+                  </span>
+                  {activeSelectedDay.completedActivities[0].average_watts && (
+                    <span style={{ color: 'var(--accent-secondary)', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                      <Zap size={14} /> {Math.round(activeSelectedDay.completedActivities[0].average_watts)}W gem
+                    </span>
+                  )}
+                  <span style={{ color: 'var(--success)', fontSize: '0.85rem', fontWeight: 700 }}>
+                    Belasting: {Math.round(activeSelectedDay.totalActualTss || (activeSelectedDay.completedActivities[0] as unknown as Record<string, number>).tss || 0)} TSS
+                  </span>
+                </div>
+
+                <p style={{ color: 'var(--text-main)', fontSize: '0.88rem', lineHeight: '1.4', margin: '0 0 0.75rem 0' }}>
+                  Lekker gewerkt! Deze rit is succesvol verwerkt in je fitness- en vermoeidheidstrends.
+                </p>
+
+                {/* Planned workout power profile comparison */}
+                {activeSelectedDay.plannedCategory !== 'rest' && activeSelectedDay.workout && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.35rem' }}>
+                      Oorspronkelijk gepland profiel
+                    </div>
+                    <WorkoutPowerProfile 
+                      workout={activeSelectedDay.workout}
+                      ftp={ftp}
+                      height={160}
+                      onClick={() => setSelectedWorkoutDay(activeSelectedDay)}
+                    />
+                  </div>
+                )}
+              </>
+            ) : activeSelectedDay.plannedCategory === 'rest' ? (
+              /* Rest Day Card */
+              <div style={{ padding: '0.5rem 0' }}>
+                <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--color-text-primary)', margin: '0 0 0.5rem 0' }}>
+                  🛌 Volledige Hersteldag
+                </h2>
+                <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 0.75rem 0' }}>
+                  {activeSelectedDay.plannedReason}
+                </p>
+                <div style={{
+                  backgroundColor: 'var(--color-surface-secondary)',
+                  padding: '0.85rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-soft)',
+                  fontSize: '0.82rem',
+                  color: 'var(--text-muted)'
+                }}>
+                  💡 <strong>Hersteltip:</strong> Geef je spieren de tijd om glycogeenvoorraden aan te vullen. Zorg voor voldoende eiwitten, hydratatie en minimaal 8 uur slaap.
+                </div>
+              </div>
+            ) : (
+              /* Primary Workout Power Profile Hero */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                <p style={{ color: 'var(--text-main)', fontSize: '0.88rem', lineHeight: '1.4', margin: 0 }}>
+                  {activeSelectedDay.plannedReason}
+                </p>
+
+                <WorkoutPowerProfile 
+                  workout={activeSelectedDay.workout}
+                  ftp={ftp}
+                  height={190}
+                  onClick={() => setSelectedWorkoutDay(activeSelectedDay)}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Bottom Actions Row */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.75rem',
+            paddingTop: '0.75rem',
+            borderTop: '1px solid var(--border-soft)'
+          }}>
+            {activeSelectedDay.plannedCategory !== 'rest' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => setSelectedWorkoutDay(activeSelectedDay)}
+                  className="btn-glass"
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Activity size={13} style={{ color: 'var(--color-primary)' }} />
+                  <span>Details & wissel workout</span>
+                </button>
+
+                <button
+                  onClick={() => downloadZwoFile(activeSelectedDay.workout)}
+                  className="btn-glass"
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  title="Download gestructureerd .zwo trainingsbestand voor Zwift"
+                >
+                  <Download size={13} style={{ color: 'var(--accent-primary)' }} />
+                  <span>Download .zwo</span>
+                </button>
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                Volledige rustdag • Spierherstel en adaptatie
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right Column: Fitness & Form (CTL / ATL / TSB) */}
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <FitnessFormChart summary={fitnessTrends} />
         </div>
       </section>
 

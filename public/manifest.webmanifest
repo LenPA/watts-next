@@ -1,0 +1,27 @@
+{
+  "name": "Watts Next — Cycling Intelligence",
+  "short_name": "Watts Next",
+  "description": "Evidence-based cycling physiology, intelligent workouts, and deterministic training planner for Strava athletes.",
+  "start_url": "/",
+  "id": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0B0F17",
+  "theme_color": "#0B0F17",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/pwa-192x192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "fitness", "health"]
+}

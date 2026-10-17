@@ -127,15 +127,17 @@ describe('Deterministic Training Plan Generator', () => {
 
     const tue = new Date(mon);
     tue.setDate(mon.getDate() + 1);
+    tue.setHours(12, 0, 0, 0);
     const wed = new Date(mon);
     wed.setDate(mon.getDate() + 2);
+    wed.setHours(12, 0, 0, 0);
 
     const activities = [
       {
         id: 101,
         name: 'Morning Commute',
         start_date: tue.toISOString(),
-        start_date_local: tue.toISOString(),
+        start_date_local: formatLocalDateKey(tue) + 'T08:30:00',
         type: 'Ride',
         sport_type: 'Ride',
         distance: 15000,
@@ -162,7 +164,7 @@ describe('Deterministic Training Plan Generator', () => {
         id: 102,
         name: 'Afternoon Ride',
         start_date: wed.toISOString(),
-        start_date_local: wed.toISOString(),
+        start_date_local: formatLocalDateKey(wed) + 'T14:00:00',
         type: 'Ride',
         sport_type: 'Ride',
         distance: 63000,

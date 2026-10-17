@@ -250,4 +250,86 @@ describe('EWMA Fitness Trends (ATL, CTL, TSB)', () => {
       expect(dayOfWorkout.atl).toBeGreaterThan(dayOfWorkout.ctl);
     }
   });
+
+  it('preserves historical CTL/ATL calculation independently of chart display period (30 vs 60 vs 90 days)', () => {
+    // Athlete with activities going back 120 days
+    const mockLongHistory: NormalizedActivity[] = [
+      {
+        id: 101,
+        name: 'Century Ride 100 days ago',
+        start_date: new Date(Date.now() - 100 * 86400000).toISOString(),
+        start_date_local: new Date(Date.now() - 100 * 86400000).toISOString(),
+        type: 'Ride',
+        sport_type: 'Ride',
+        distance: 100000,
+        moving_time: 14400,
+        elapsed_time: 15000,
+        total_elevation_gain: 800,
+        average_watts: 200,
+        max_watts: 450,
+        weighted_average_watts: 210,
+        device_watts: true,
+        has_heartrate: false,
+        average_heartrate: null,
+        max_heartrate: null,
+        average_cadence: null,
+        trainer: false,
+        commute: false,
+        suffer_score: null,
+        has_stream: false,
+        created_at: Date.now(),
+        updated_at: Date.now()
+      },
+      {
+        id: 102,
+        name: 'Threshold intervals 20 days ago',
+        start_date: new Date(Date.now() - 20 * 86400000).toISOString(),
+        start_date_local: new Date(Date.now() - 20 * 86400000).toISOString(),
+        type: 'Ride',
+        sport_type: 'Ride',
+        distance: 40000,
+        moving_time: 3600,
+        elapsed_time: 3600,
+        total_elevation_gain: 200,
+        average_watts: 250,
+        max_watts: 400,
+        weighted_average_watts: 250,
+        device_watts: true,
+        has_heartrate: false,
+        average_heartrate: null,
+        max_heartrate: null,
+        average_cadence: null,
+        trainer: false,
+        commute: false,
+        suffer_score: null,
+        has_stream: false,
+        created_at: Date.now(),
+        updated_at: Date.now()
+      }
+    ];
+
+    const view30 = calculateFitnessTrends(mockLongHistory, 250, { days: 30 });
+    const view60 = calculateFitnessTrends(mockLongHistory, 250, { days: 60 });
+    const view90 = calculateFitnessTrends(mockLongHistory, 250, { days: 90 });
+
+    // The series length must match the requested display window
+    expect(view30.series.length).toBe(30);
+    expect(view60.series.length).toBe(60);
+    expect(view90.series.length).toBe(90);
+
+    // Current CTL, ATL, and TSB on today must be IDENTICAL across all views!
+    expect(view30.currentCtl).toBe(view90.currentCtl);
+    expect(view30.currentAtl).toBe(view90.currentAtl);
+    expect(view30.currentTsb).toBe(view90.currentTsb);
+
+    // Due to the ride 100 days ago, CTL on today should be > 0 in all views, not reset to 0
+    expect(view30.currentCtl).toBeGreaterThan(0);
+
+    // Overlapping dates between view30 and view90 must have identical values
+    const latest30 = view30.series[view30.series.length - 1];
+    const latest90 = view90.series[view90.series.length - 1];
+    expect(latest30.ctl).toBe(latest90.ctl);
+    expect(latest30.atl).toBe(latest90.atl);
+    expect(latest30.tsb).toBe(latest90.tsb);
+  });
 });

@@ -438,7 +438,7 @@ export function calculateFitnessTrends(
   activities: NormalizedActivity[],
   ftp: number,
   options?: {
-    days?: number; // default 90 days
+    days?: number; // display window, default 90 days
     streamsMap?: Map<number, ActivityStreamRecord>;
     athleteMaxHr?: number;
   }
@@ -447,21 +447,27 @@ export function calculateFitnessTrends(
   const streamsMap = options?.streamsMap;
   const maxHr = options?.athleteMaxHr || 190;
 
-  // Build daily timeline from (days - 1) days ago until today
+  // Build daily timeline up to today
   const today = new Date();
   today.setHours(23, 59, 59, 999);
 
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - (days - 1));
-  startDate.setHours(0, 0, 0, 0);
+  // Requested display start date (e.g. 30, 60 or 90 days ago)
+  const displayStartDate = new Date(today);
+  displayStartDate.setDate(today.getDate() - (days - 1));
+  displayStartDate.setHours(0, 0, 0, 0);
 
-  // Map activities into day buckets (key: YYYY-MM-DD)
+  // Map activities into day buckets (key: YYYY-MM-DD) and determine earliest activity
   const dailyLoads = new Map<string, { totalTss: number; count: number }>();
+  let earliestActivityTimestamp = Infinity;
 
   activities.forEach(act => {
     const rawDate = act.start_date_local || act.start_date;
     if (!rawDate) return;
     const key = rawDate.slice(0, 10);
+    const actDate = new Date(`${key}T00:00:00`);
+    if (!isNaN(actDate.getTime()) && actDate.getTime() < earliestActivityTimestamp) {
+      earliestActivityTimestamp = actDate.getTime();
+    }
 
     const stream = streamsMap?.get(act.id);
     const phys = calculateActivityPhysiology(act, ftp, stream, maxHr);
@@ -473,16 +479,23 @@ export function calculateFitnessTrends(
     });
   });
 
+  // Calculation must start from the earliest historical activity (or at least displayStartDate)
+  // so that CTL (42-day tau) and ATL (7-day tau) build up continuously without resetting
+  const calcStartDate = earliestActivityTimestamp < Infinity
+    ? new Date(Math.min(earliestActivityTimestamp, displayStartDate.getTime()))
+    : new Date(displayStartDate);
+  calcStartDate.setHours(0, 0, 0, 0);
+
   // Time constants
   const alphaATL = 1 - Math.exp(-1 / 7);
   const alphaCTL = 1 - Math.exp(-1 / 42);
 
-  const series: DailyFitnessRecord[] = [];
+  const allSeries: DailyFitnessRecord[] = [];
   let currentAtl = 0;
   let currentCtl = 0;
 
-  // Generate continuous timeline
-  const cursor = new Date(startDate);
+  // Generate continuous timeline from calculation start date to today
+  const cursor = new Date(calcStartDate);
   const monthNames = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
 
   while (cursor <= today) {
@@ -497,7 +510,7 @@ export function calculateFitnessTrends(
     currentAtl = currentAtl + alphaATL * (dailyTss - currentAtl);
     currentCtl = currentCtl + alphaCTL * (dailyTss - currentCtl);
 
-    series.push({
+    allSeries.push({
       date: key,
       dateLabel: `${cursor.getDate()} ${monthNames[cursor.getMonth()]}`,
       timestamp: cursor.getTime(),
@@ -510,6 +523,9 @@ export function calculateFitnessTrends(
 
     cursor.setDate(cursor.getDate() + 1);
   }
+
+  // Slice series to the requested display timeframe (e.g. 30, 60, or 90 days)
+  const series = allSeries.slice(-days);
 
   const latest = series[series.length - 1] || { ctl: 0, atl: 0, tsb: 0 };
   const currentTsb = Math.round((currentCtl - currentAtl) * 10) / 10;

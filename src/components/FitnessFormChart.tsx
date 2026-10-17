@@ -11,11 +11,9 @@ import {
   ReferenceLine
 } from 'recharts';
 import { 
-  Activity, 
   TrendingUp, 
   Info, 
-  BatteryCharging, 
-  Flame 
+  BatteryCharging 
 } from 'lucide-react';
 import type { FitnessSummary } from '../lib/physiology';
 
@@ -193,81 +191,64 @@ export default function FitnessFormChart({ summary }: FitnessFormChartProps) {
         </div>
       </div>
 
-      {/* 3 Metric Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem' }}>
-        {/* Fitness CTL */}
-        <div style={{
-          backgroundColor: 'var(--color-surface-hover)',
-          borderRadius: '0.75rem',
-          padding: '0.875rem',
-          border: '1px solid var(--color-border)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.25rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-              Conditie (CTL)
+      {/* Compact Inline Metrics: CTL, ATL, TSB */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
+        backgroundColor: 'var(--color-surface-hover)',
+        padding: '0.5rem 0.85rem',
+        borderRadius: '0.625rem',
+        border: '1px solid var(--color-border)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+          {/* CTL (Fitness) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }} title="Chronic Training Load (42-dagen conditie)">
+            <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#06b6d4', display: 'inline-block' }} /> CTL:
             </span>
-            <Activity size={14} style={{ color: '#06b6d4' }} />
+            <strong style={{ color: '#06b6d4', fontWeight: 800, fontSize: '1.05rem' }}>{currentCtl}</strong>
           </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#06b6d4' }}>
-            {currentCtl}
+
+          {/* ATL (Fatigue) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }} title="Acute Training Load (7-dagen vermoeidheid)">
+            <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: '#ec4899', display: 'inline-block' }} /> ATL:
+            </span>
+            <strong style={{ color: '#ec4899', fontWeight: 800, fontSize: '1.05rem' }}>{currentAtl}</strong>
           </div>
-          <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-            42-dagen gewogen belasting
-          </span>
+
+          {/* TSB (Form) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }} title="Training Stress Balance (Vorm & Frisheid)">
+            <span style={{ color: 'var(--color-text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: statusColor, display: 'inline-block' }} /> TSB:
+            </span>
+            <strong style={{ color: statusColor, fontWeight: 800, fontSize: '1.05rem' }}>
+              {currentTsb > 0 ? `+${currentTsb}` : currentTsb}
+            </strong>
+          </div>
         </div>
 
-        {/* Fatigue ATL */}
-        <div style={{
-          backgroundColor: 'var(--color-surface-hover)',
-          borderRadius: '0.75rem',
-          padding: '0.875rem',
-          border: '1px solid var(--color-border)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.25rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-              Vermoeidheid (ATL)
-            </span>
-            <Flame size={14} style={{ color: '#ec4899' }} />
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#ec4899' }}>
-            {currentAtl}
-          </div>
-          <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-            7-dagen acute vermoeidheid
-          </span>
-        </div>
-
-        {/* Form TSB */}
-        <div style={{
-          backgroundColor: 'var(--color-surface-hover)',
-          borderRadius: '0.75rem',
-          padding: '0.875rem',
-          border: `1px solid ${statusColor}44`,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.25rem'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-muted)' }}>
-              Vorm / Frisheid (TSB)
-            </span>
-            <BatteryCharging size={14} style={{ color: statusColor }} />
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: statusColor }}>
-            {currentTsb > 0 ? `+${currentTsb}` : currentTsb}
-          </div>
-          <span 
-            title={formStatusDescription}
-            style={{ fontSize: '0.7rem', fontWeight: 600, color: statusColor, cursor: 'help' }}
-          >
-            {formStatusLabel}
-          </span>
+        {/* Form Status Badge */}
+        <div 
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            backgroundColor: `${statusColor}18`,
+            color: statusColor,
+            border: `1px solid ${statusColor}35`,
+            padding: '0.2rem 0.55rem',
+            borderRadius: '4px',
+            fontSize: '0.75rem',
+            fontWeight: 700
+          }}
+          title={formStatusDescription}
+        >
+          <BatteryCharging size={13} />
+          <span>{formStatusLabel}</span>
         </div>
       </div>
 
@@ -310,7 +291,7 @@ export default function FitnessFormChart({ summary }: FitnessFormChartProps) {
       )}
 
       {/* Recharts Chart Area */}
-      <div style={{ width: '100%', height: '220px', marginTop: '0.25rem' }}>
+      <div style={{ width: '100%', height: '230px', marginTop: '0.25rem' }}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={filteredSeries}

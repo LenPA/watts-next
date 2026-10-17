@@ -11,3 +11,17 @@ createRoot(document.getElementById('root')!).render(
     </ThemeProvider>
   </StrictMode>,
 )
+
+// Register PWA service worker
+if ('serviceWorker' in navigator && (import.meta.env.PROD || window.location.protocol === 'https:')) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((reg) => {
+        console.log('Watts Next PWA Service Worker registered successfully:', reg.scope);
+      })
+      .catch((err) => {
+        console.warn('Watts Next PWA Service Worker registration skipped:', err);
+      });
+  });
+}
